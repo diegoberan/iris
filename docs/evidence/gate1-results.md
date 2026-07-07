@@ -33,6 +33,12 @@ conditions. Tier reported by the `X-Iris-Tier` response header:
 The `amd-instinct` tier (vLLM on the AMD GPU cloud pod) slots between these two —
 pending pod access.
 
+**Real-world agentic validation (same day):** the production Brain completed a live
+Gmail task ("read my emails", OAuth-backed Workspace skill → tool calls → synthesis)
+end-to-end through the Orchestrator's desktop-local tier — Gemma 4 12B on the user's
+own Radeon. The email content never touched a commercial LLM API: it traveled from
+the user's own server to the user's own GPU and back.
+
 Additional data:
 - Ornith-1.0-9B (community agentic model, Qwen-based) on the same local tier:
   100% Gate-1, 4.9s avg — kept as a benchmark; not Gemma-based, so not the
