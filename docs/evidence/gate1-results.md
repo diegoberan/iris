@@ -33,11 +33,12 @@ conditions. Tier reported by the `X-Iris-Tier` response header:
 The `amd-instinct` tier (vLLM on the AMD GPU cloud pod) slots between these two —
 pending pod access.
 
-**Real-world agentic validation (same day):** the production Brain completed a live
-Gmail task ("read my emails", OAuth-backed Workspace skill → tool calls → synthesis)
-end-to-end through the Orchestrator's desktop-local tier — Gemma 4 12B on the user's
-own Radeon. The email content never touched a commercial LLM API: it traveled from
-the user's own server to the user's own GPU and back.
+**Real-world agentic validation (same day):** on a live "read my emails" request,
+the production Brain — running the full agent loop on Gemma 4 12B on the user's own
+Radeon via the desktop-local tier — selected the Workspace tool, detected the expired
+Google OAuth, and explained the failure cleanly. Tool selection and graceful error
+handling validated in the real loop; the happy-path email scene is pending OAuth
+re-authentication (tracked for demo prep).
 
 Additional data:
 - Ornith-1.0-9B (community agentic model, Qwen-based) on the same local tier:
