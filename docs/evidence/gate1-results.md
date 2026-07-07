@@ -18,6 +18,28 @@ chain), scored programmatically. No LLM judge, no self-reported numbers.
 **Gate 1 GREEN: Gemma 4 drives the agent loop.** Tool-calling quality is not the risk;
 remaining work is latency tuning and the AMD Instinct tier measurement.
 
+## Orchestrator failover — live cycle (2026-07-07, production Brain on Oracle VPS)
+
+The Orchestrator (`feat/iris-orchestrator` branch) routed the same request across
+capability tiers as the local body was killed and resurrected on camera-equivalent
+conditions. Tier reported by the `X-Iris-Tier` response header:
+
+| Body state | Winning tier | Model that answered |
+|---|---|---|
+| LM Studio alive, Desktop announced | `desktop-local` (WS relay to the user's Radeon) | `google/gemma-4-12b-qat` |
+| LM Studio killed | `fireworks` (serverless fallback) | `accounts/fireworks/models/kimi-k2p6` |
+| LM Studio restarted, Desktop re-announced | `desktop-local` | `google/gemma-4-12b-qat` |
+
+The `amd-instinct` tier (vLLM on the AMD GPU cloud pod) slots between these two —
+pending pod access.
+
+Additional data:
+- Ornith-1.0-9B (community agentic model, Qwen-based) on the same local tier:
+  100% Gate-1, 4.9s avg — kept as a benchmark; not Gemma-based, so not the
+  announced demo model.
+- 128K-context fill on the local tier: VRAM flat (KV pre-allocated by llama.cpp);
+  prompt processing 883→574 tok/s from 12K→80K tokens.
+
 ## Local-tier tuning log
 
 - One model at a time on the 16 GB card: co-resident models spill to system RAM and
