@@ -35,10 +35,12 @@ pending pod access.
 
 **Real-world agentic validation (same day):** on a live "read my emails" request,
 the production Brain — running the full agent loop on Gemma 4 12B on the user's own
-Radeon via the desktop-local tier — selected the Workspace tool, detected the expired
-Google OAuth, and explained the failure cleanly. Tool selection and graceful error
-handling validated in the real loop; the happy-path email scene is pending OAuth
-re-authentication (tracked for demo prep).
+Radeon via the desktop-local tier — first selected the Workspace tool, detected the
+expired Google OAuth, and explained the failure cleanly; after re-authentication it
+identified the token and **read the user's inbox end-to-end**. Both paths validated
+in the real loop: graceful failure handling and the happy path. The email content
+was processed by a model on the user's own GPU — it never touched a commercial LLM
+API.
 
 Additional data:
 - Ornith-1.0-9B (community agentic model, Qwen-based) on the same local tier:
