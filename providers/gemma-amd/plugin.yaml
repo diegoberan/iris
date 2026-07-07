@@ -1,0 +1,5 @@
+name: gemma-amd-profile
+kind: model-provider
+version: 0.1.0
+description: AMD-hosted Gemma (vLLM on AMD Instinct GPU cloud)
+author: Diego Beran

@@ -1,0 +1,5 @@
+name: fireworks-profile
+kind: model-provider
+version: 0.1.0
+description: Fireworks AI serverless inference (Gemma fallback tier)
+author: Diego Beran

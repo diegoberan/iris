@@ -1,0 +1,5 @@
+name: gemma-local-profile
+kind: model-provider
+version: 0.1.0
+description: Gemma on the user's local AMD Radeon GPU (ROCm/Vulkan)
+author: Diego Beran
