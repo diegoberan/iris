@@ -46,4 +46,9 @@ Additional data:
   starve the GPU (observed: 29s avg with Ornith-9B co-loaded → 6.5s solo).
 - Flash attention + KV cache quantization (q4_0) cut prompt-processing latency sharply.
 - The QAT build ships with thinking mode enabled (`reasoning_content` in responses) —
-  hidden reasoning tokens dominate latency on short tool-call turns.
+  hidden reasoning tokens dominate latency on short tool-call turns. Disabled via the
+  model's inference settings.
+- **Prefix cache is the decisive lever** (LM Studio 0.4.18, ROCm runtime): with
+  Max Concurrent Predictions = 1, an 8K-token prompt drops from 9.1s (cold) to
+  **1.1s (warm, 8.4×)** on repeat — the agent's stable system-prompt prefix is paid
+  once per session, each turn only processes its delta. Short turns: 0.5s.
