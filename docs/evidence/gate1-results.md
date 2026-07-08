@@ -32,11 +32,11 @@ conditions. Tier reported by the `X-Iris-Tier` response header:
 
 **`amd-cloud` tier live (2026-07-08):** Gemma-4-26B-A4B (Q4_K_M, 25.2B params) served
 by llama.cpp built from source with ROCm/HIP on the hackathon's AMD GPU cloud pod
-(Radeon RX 7900 XTX, gfx1100), reached from the Brain through a restricted reverse SSH
+(Radeon PRO W7900 48 GB, gfx1100), reached from the Brain through a restricted reverse SSH
 tunnel (pod → VPS loopback). Round-trip through the Orchestrator returned
 `X-Iris-Tier: amd-cloud`, model `gemma-4-26b` — with the Desktop Node offline, the
 chain routed to the AMD cloud tier exactly as designed. Gemma now runs on three AMD
-compute tiers: Radeon RX 9060 XT (local, 12B QAT), Radeon RX 7900 XTX (AMD cloud, 26B),
+compute tiers: Radeon RX 9060 XT (local, 12B QAT), Radeon PRO W7900 (AMD cloud, 26B),
 plus a serverless non-AMD fallback.
 
 **Real agent turns on the AMD cloud tier (same day):** with the local body switched off
