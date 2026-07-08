@@ -57,6 +57,9 @@ Additional data:
 - The QAT build ships with thinking mode enabled (`reasoning_content` in responses) —
   hidden reasoning tokens dominate latency on short tool-call turns. Disabled via the
   model's inference settings.
+- Runtime A/B on gfx1200 (llama.cpp 2.24, Ornith-9B Q4, 262K ctx): ROCm 1,070 tok/s
+  prefill / 35.3 tok/s gen vs Vulkan 1,143 / 36.5 — statistical tie. Backend choice is
+  not a lever on this hardware; ROCm kept as demo default for stack coherence.
 - **Prefix cache is the decisive lever** (LM Studio 0.4.18, ROCm runtime): with
   Max Concurrent Predictions = 1, an 8K-token prompt drops from 9.1s (cold) to
   **1.1s (warm, 8.4×)** on repeat — the agent's stable system-prompt prefix is paid
