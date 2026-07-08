@@ -39,6 +39,13 @@ chain routed to the AMD cloud tier exactly as designed. Gemma now runs on three 
 compute tiers: Radeon RX 9060 XT (local, 12B QAT), Radeon RX 7900 XTX (AMD cloud, 26B),
 plus a serverless non-AMD fallback.
 
+**Real agent turns on the AMD cloud tier (same day):** with the local body switched off
+from the tray, the user's live Hermes turns (≈22.4K-token agent prompts) routed to the
+pod and ran at **~71 tok/s generation** — twice the local 12B's speed — with
+llama.cpp's prefix cache reusing the agent prompt across turns (only ~100 new tokens
+prompt-eval per turn, ~190 ms). Kill-switch flow exercised in production, both
+directions, from the system tray.
+
 **Real-world agentic validation (same day):** on a live "read my emails" request,
 the production Brain — running the full agent loop on Gemma 4 12B on the user's own
 Radeon via the desktop-local tier — first selected the Workspace tool, detected the
