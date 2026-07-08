@@ -30,8 +30,14 @@ conditions. Tier reported by the `X-Iris-Tier` response header:
 | LM Studio killed | `fireworks` (serverless fallback) | `accounts/fireworks/models/kimi-k2p6` |
 | LM Studio restarted, Desktop re-announced | `desktop-local` | `google/gemma-4-12b-qat` |
 
-The `amd-instinct` tier (vLLM on the AMD GPU cloud pod) slots between these two —
-pending pod access.
+**`amd-cloud` tier live (2026-07-08):** Gemma-4-26B-A4B (Q4_K_M, 25.2B params) served
+by llama.cpp built from source with ROCm/HIP on the hackathon's AMD GPU cloud pod
+(Radeon RX 7900 XTX, gfx1100), reached from the Brain through a restricted reverse SSH
+tunnel (pod → VPS loopback). Round-trip through the Orchestrator returned
+`X-Iris-Tier: amd-cloud`, model `gemma-4-26b` — with the Desktop Node offline, the
+chain routed to the AMD cloud tier exactly as designed. Gemma now runs on three AMD
+compute tiers: Radeon RX 9060 XT (local, 12B QAT), Radeon RX 7900 XTX (AMD cloud, 26B),
+plus a serverless non-AMD fallback.
 
 **Real-world agentic validation (same day):** on a live "read my emails" request,
 the production Brain — running the full agent loop on Gemma 4 12B on the user's own
