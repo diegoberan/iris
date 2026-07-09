@@ -62,6 +62,19 @@ Additional data:
 - 128K-context fill on the local tier: VRAM flat (KV pre-allocated by llama.cpp);
   prompt processing 883→574 tok/s from 12K→80K tokens.
 
+**Tier 3 redesigned as a real switch (2026-07-09):** the last-resort tier stopped
+being a silent proxy. Live finding that motivated it: after a fireworks-tier answer,
+the session config (and the agent's own self-report) still claimed the local model —
+the failsafe answered but nothing observable changed owner. Now the tier is generic
+(`IRIS_FALLBACK_*`, pointed at OpenCode Go / `deepseek-v4-flash`), reports as
+`cloud-fallback`, and its `iris.tier.used` broadcast carries the provider's Hermes
+slug — the Desktop commits an actual session switch (`config.set`) to it, so the
+picker, `session.info` and the agent all agree on who is answering. Verified live on
+the production Brain: with the Desktop and AMD-cloud tiers down, the Orchestrator
+returned `X-Iris-Tier: cloud-fallback`, model `deepseek-v4-flash`, correct completion.
+Failing back to Iris when the local body returns is a manual picker action (the
+GPU-resident dot shows when the local model is loaded again).
+
 ## Local-tier tuning log
 
 - One model at a time on the 16 GB card: co-resident models spill to system RAM and
