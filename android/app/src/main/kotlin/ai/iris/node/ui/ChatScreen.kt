@@ -215,13 +215,13 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
 @Composable
 private fun EmptyState(modifier: Modifier) {
     Column(
-        // Pure-black backdrop so the full-detail logo (black-background
-        // artwork) sits seamlessly -- no square edge on the empty state.
-        modifier.background(Color.Black),
+        modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Image(
+            // Logo's black pixels are recolored to the app background (#0E0E0E),
+            // so the square blends into the surface -- no bg change needed.
             painter = painterResource(R.drawable.iris_logo_t),
             contentDescription = "Íris",
             modifier = Modifier.size(180.dp)
