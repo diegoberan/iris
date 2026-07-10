@@ -24,7 +24,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -49,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -113,7 +123,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                     ),
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawer.open() } }) {
-                            Text("☰", color = Mono.foreground, fontSize = 20.sp)
+                            Icon(Icons.Rounded.Menu, "Sessions", tint = Mono.foreground)
                         }
                     },
                     title = {
@@ -121,13 +131,14 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                     },
                     actions = {
                         IconButton(onClick = onOpenSettings) {
-                            Text("⚙", color = Mono.mutedForeground, fontSize = 18.sp)
+                            Icon(Icons.Rounded.Settings, "Settings", tint = Mono.mutedForeground)
                         }
                     }
                 )
             },
             bottomBar = {
                 Composer(
+                    vm = vm,
                     draft = draft,
                     onDraft = { draft = it },
                     busy = busy,
@@ -140,6 +151,10 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                 )
             }
         ) { inner ->
+            if (transcript.isEmpty()) {
+                EmptyState(Modifier.fillMaxSize().padding(inner))
+                return@Scaffold
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(inner),
@@ -168,6 +183,29 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     }
 }
 
+// ── Empty state ───────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyState(modifier: Modifier) {
+    Column(
+        modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(R.drawable.iris_wordmark),
+            contentDescription = "Iris",
+            modifier = Modifier.fillMaxWidth(0.55f)
+        )
+        Text(
+            "One Brain. Multiple Bodies.",
+            color = Mono.mutedForeground,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(top = 16.dp)
+        )
+    }
+}
+
 // ── Transcript pieces ─────────────────────────────────────────────────
 
 @Composable
@@ -192,15 +230,16 @@ private fun UserMessage(text: String) {
 private fun AssistantMessage(message: ChatMessage) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (message.mediaPath != null) AudioBubble(message.mediaPath)
-        if (message.text.isNotBlank() || message.streaming) {
+        if (message.streaming) {
+            // While tokens stream, render raw text + caret (markdown re-parse
+            // per token is wasteful and half-open ** / ``` would flicker).
             Text(
-                message.text + if (message.streaming) " ▍" else "",
-                color = Mono.foreground,
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                fontFamily = Sans,
-                modifier = Modifier.fillMaxWidth()
+                message.text + " ▍",
+                color = Mono.foreground, fontSize = 15.sp, lineHeight = 22.sp,
+                fontFamily = Sans, modifier = Modifier.fillMaxWidth()
             )
+        } else if (message.text.isNotBlank()) {
+            MarkdownText(message.text)
         }
     }
 }
@@ -228,6 +267,7 @@ private fun ActivityLine(row: ActivityRow) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Composer(
+    vm: ChatViewModel,
     draft: String,
     onDraft: (String) -> Unit,
     busy: Boolean,
@@ -238,88 +278,191 @@ private fun Composer(
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val attachments by vm.pendingAttachments.collectAsState()
+    val dictated by vm.dictated.collectAsState()
+    val dictating by vm.dictating.collectAsState()
+
+    // Whisper transcript → append to the draft (dictation), then consume.
+    LaunchedEffect(dictated) {
+        if (dictated.isNotBlank()) {
+            onDraft((draft.trimEnd() + " " + dictated).trim())
+            vm.consumeDictation()
+        }
+    }
+
+    val recorder = remember { VoiceRecorder(context) }
+    var recording by remember { mutableStateOf(false) }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                vm.attachImage(b64, "image-${System.currentTimeMillis()}.jpg")
+            }
+        }
+    }
+
+    val micPermLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) { recording = recorder.start() } }
+
+    fun toggleMic() {
+        if (recording) {
+            recording = false
+            val dataUrl = recorder.stop()
+            if (dataUrl != null) vm.transcribe(dataUrl, "audio/mp4")
+        } else {
+            val granted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (granted) recording = recorder.start()
+            else micPermLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    val showSend = draft.isNotBlank() || busy
+
+    // One rounded container (Claude/ChatGPT style): input on top, a control
+    // row below with attach, model pill, mic and send.
     Column(
         Modifier
             .background(Mono.background)
             .fillMaxWidth()
             .imePadding()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        // Thin strip: model chip + live tier / error notice.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Mono.card)
-                    .border(1.dp, Mono.border, RoundedCornerShape(50))
-                    .clickable { onModelTap() }
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(Modifier.size(6.dp).background(Iris.amber, CircleShape))
-                Text(
-                    modelLabel.ifBlank { "model" },
-                    color = Mono.secondaryForeground,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 6.dp).widthInChip()
-                )
-                Text(" ⌄", color = Mono.mutedForeground, fontSize = 12.sp)
-            }
-            Spacer(Modifier.width(10.dp))
-            val notice = errorNotice.ifBlank { tierNotice }
-            if (notice.isNotBlank()) {
-                Text(
-                    notice,
-                    color = if (errorNotice.isNotBlank()) Mono.destructive else Mono.mutedForeground,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+        val notice = errorNotice.ifBlank { tierNotice }
+        if (notice.isNotBlank()) {
+            Text(
+                notice,
+                color = if (errorNotice.isNotBlank()) Mono.destructive else Mono.mutedForeground,
+                fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+            )
         }
 
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Mono.card)
+                .border(1.dp, Mono.border, RoundedCornerShape(24.dp))
+                .padding(6.dp)
+        ) {
+            if (attachments.isNotEmpty()) {
+                Text(
+                    "📎 " + attachments.joinToString(", "),
+                    color = Mono.mutedForeground, fontSize = 11.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 12.dp, top = 6.dp)
+                )
+            }
+
             OutlinedTextField(
                 value = draft,
                 onValueChange = onDraft,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("What's on your mind?", color = Mono.mutedForeground) },
-                shape = RoundedCornerShape(24.dp),
-                maxLines = 5,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Message Iris…", color = Mono.mutedForeground) },
+                maxLines = 6,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Mono.card,
-                    unfocusedContainerColor = Mono.card,
-                    focusedBorderColor = Iris.amber,
-                    unfocusedBorderColor = Mono.border,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedTextColor = Mono.foreground,
                     unfocusedTextColor = Mono.foreground,
                     cursorColor = Iris.amber
                 )
             )
-            Box(
-                Modifier
-                    .padding(start = 8.dp, bottom = 4.dp)
-                    .size(44.dp)
-                    .background(if (busy) Mono.destructive else Iris.amber, CircleShape)
-                    .clickable { if (busy) onStop() else onSend() },
-                contentAlignment = Alignment.Center
+
+            Row(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    if (busy) "■" else "↑",
-                    color = if (busy) Color.White else Iris.onAmber,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                // Attach image
+                RoundIconButton(Icons.Rounded.Add, "Attach", bg = Mono.muted, tint = Mono.foreground) {
+                    imagePicker.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                // Model pill
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Mono.muted)
+                        .clickable { onModelTap() }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(6.dp).background(Iris.amber, CircleShape))
+                    Text(
+                        modelLabel.ifBlank { "model" },
+                        color = Mono.secondaryForeground, fontSize = 13.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 6.dp).width(120.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                // Mic (dictation)
+                RoundIconButton(
+                    Icons.Rounded.Mic,
+                    "Voice input",
+                    bg = if (recording) Iris.amber else Mono.muted,
+                    tint = if (recording) Iris.onAmber else Mono.foreground,
+                    loading = dictating
+                ) { toggleMic() }
+                Spacer(Modifier.width(8.dp))
+                // Send / stop (shown when there's something to do)
+                if (showSend) {
+                    Box(
+                        Modifier.size(40.dp)
+                            .background(if (busy) Mono.destructive else Iris.amber, CircleShape)
+                            .clickable { if (busy) onStop() else onSend() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (busy) Icons.Rounded.Stop else Icons.Rounded.ArrowUpward,
+                            contentDescription = if (busy) "Stop" else "Send",
+                            tint = if (busy) Color.White else Iris.onAmber,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-private fun Modifier.widthInChip(): Modifier = this.then(Modifier.width(140.dp))
+@Composable
+private fun RoundIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    desc: String,
+    bg: Color,
+    tint: Color,
+    loading: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier.size(40.dp).background(bg, CircleShape).clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (loading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                color = tint, strokeWidth = 2.dp, modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Icon(icon, desc, tint = tint, modifier = Modifier.size(20.dp))
+        }
+    }
+}
 
 // ── Drawer ────────────────────────────────────────────────────────────
 

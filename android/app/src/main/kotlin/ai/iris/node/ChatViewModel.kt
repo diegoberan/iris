@@ -58,6 +58,12 @@ class ChatViewModel : ViewModel() {
     val errorNotice = MutableStateFlow("")
     val providers = MutableStateFlow<List<ProviderModels>>(emptyList())
 
+    /** Filenames of images attached to (and shipped with) the next prompt. */
+    val pendingAttachments = MutableStateFlow<List<String>>(emptyList())
+    /** Transcribed dictation text pushed to the composer draft. */
+    val dictated = MutableStateFlow("")
+    val dictating = MutableStateFlow(false)
+
     init {
         viewModelScope.launch { GatewayConnection.events.collect(::onEvent) }
         viewModelScope.launch {
@@ -139,7 +145,10 @@ class ChatViewModel : ViewModel() {
     fun sendPrompt(text: String) {
         val sid = activeSessionId.value ?: run { newSession(); return }
         viewModelScope.launch {
-            transcript.value = transcript.value + ChatMessage("user", text)
+            val attachSuffix = pendingAttachments.value.takeIf { it.isNotEmpty() }
+                ?.joinToString(", ", prefix = "  📎 ") ?: ""
+            transcript.value = transcript.value + ChatMessage("user", text + attachSuffix)
+            pendingAttachments.value = emptyList()
             busy.value = true
             runCatching {
                 GatewayConnection.request("prompt.submit", buildJsonObject {
@@ -159,6 +168,38 @@ class ChatViewModel : ViewModel() {
             runCatching { GatewayConnection.request("session.interrupt", buildJsonObject { put("session_id", sid) }) }
         }
     }
+
+    /** Attach an image (base64) to the session; it ships with the next prompt.
+     *  Same RPC the remote Desktop uses (client has no gateway-local path). */
+    fun attachImage(base64: String, filename: String) {
+        val sid = activeSessionId.value ?: run { newSession(); return }
+        viewModelScope.launch {
+            runCatching {
+                GatewayConnection.request("image.attach_bytes", buildJsonObject {
+                    put("session_id", sid)
+                    put("content_base64", base64)
+                    put("filename", filename)
+                }, 60_000)
+                pendingAttachments.value = pendingAttachments.value + filename
+            }.onFailure { errorNotice.value = "attach: ${it.message}" }
+        }
+    }
+
+    /** Record → transcribe: push the Whisper transcript to the composer draft
+     *  (dictation, like the ChatGPT mic). The clip goes to the Brain's STT. */
+    fun transcribe(dataUrl: String, mimeType: String) {
+        viewModelScope.launch {
+            dictating.value = true
+            runCatching {
+                val rest = GatewayConnection.rest ?: error("not connected")
+                rest.transcribe(dataUrl, mimeType)
+            }.onSuccess { text -> if (!text.isNullOrBlank()) dictated.value = text }
+                .onFailure { errorNotice.value = "voice: ${it.message}" }
+            dictating.value = false
+        }
+    }
+
+    fun consumeDictation() { dictated.value = "" }
 
     fun loadModelOptions() {
         viewModelScope.launch {

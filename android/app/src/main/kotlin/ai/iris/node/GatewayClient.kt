@@ -34,6 +34,15 @@ private data class TicketReply(val ticket: String = "")
 @Serializable
 private data class MediaReply(@kotlinx.serialization.SerialName("data_url") val dataUrl: String = "")
 
+@Serializable
+private data class TranscribeRequest(
+    @kotlinx.serialization.SerialName("data_url") val dataUrl: String,
+    @kotlinx.serialization.SerialName("mime_type") val mimeType: String,
+)
+
+@Serializable
+private data class TranscribeReply(val transcript: String = "")
+
 /**
  * Auth + WebSocket plumbing against a gated Hermes gateway. Mirrors what the
  * Desktop app does: password-login sets the session cookies, ws-ticket mints a
@@ -82,6 +91,16 @@ class GatewayClient(private val baseUrl: String) {
             url { parameters.append("path", path) }
         }.body()
         return reply.dataUrl.ifBlank { null }
+    }
+
+    /** Send a recorded clip to the Brain's Whisper endpoint; returns the
+     *  transcript. The same authenticated cookie the WS uses gates this. */
+    suspend fun transcribe(dataUrl: String, mimeType: String): String? {
+        val reply: TranscribeReply = http.post("$base/api/audio/transcribe") {
+            contentType(ContentType.Application.Json)
+            setBody(TranscribeRequest(dataUrl, mimeType))
+        }.body()
+        return reply.transcript.ifBlank { null }
     }
 
     fun close() = http.close()

@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -171,11 +177,23 @@ fun AudioBubble(mediaPath: String) {
                     .clickable { onPlayTap() },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    when { loading -> "…"; failed -> "!"; playing -> "⏸"; else -> "▶" },
-                    color = if (failed) Mono.destructive else Iris.onAmber,
-                    fontSize = 16.sp
-                )
+                if (loading) {
+                    CircularProgressIndicator(
+                        color = Iris.onAmber, strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = when {
+                            failed -> Icons.Rounded.ErrorOutline
+                            playing -> Icons.Rounded.Pause
+                            else -> Icons.Rounded.PlayArrow
+                        },
+                        contentDescription = if (playing) "Pause" else "Play",
+                        tint = if (failed) Mono.destructive else Iris.onAmber,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
             Text(
                 if (failed) "unavailable"
