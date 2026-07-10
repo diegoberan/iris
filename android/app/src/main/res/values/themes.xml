@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Black window + splash background so the launcher icon (iris on black,
+         black pupil) blends seamlessly on the Android 12+ splash instead of a
+         black pupil showing on a lighter default splash surface. -->
+    <style name="Theme.Iris" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/black</item>
+    </style>
+</resources>

@@ -93,6 +93,9 @@ class ChatViewModel : ViewModel() {
         if (activeSessionId.value == null) {
             sessions.value.firstOrNull()?.let { selectSession(it.id) }
         }
+        // Seed the composer's model pill with the real current model so it
+        // shows e.g. "deepseek-v4-flash" up front instead of "Select model".
+        loadModelOptions()
     }
 
     private fun profileParam(): String? = activeProfile.value.takeIf { it != "default" }

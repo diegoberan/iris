@@ -431,7 +431,7 @@ private fun Composer(
                 value = draft,
                 onValueChange = onDraft,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Message Iris…", color = Mono.mutedForeground) },
+                placeholder = { Text("Message…", color = Mono.mutedForeground) },
                 maxLines = 6,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
