@@ -15,9 +15,6 @@ import android.os.CancellationSignal
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.websocket.Frame
-import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,26 +24,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlin.coroutines.resume
 
 /**
- * The Node itself: a foreground service that keeps one WebSocket to the Brain,
- * announces this phone's capabilities (notification.send, location.current)
- * and answers act requests over the same socket. Reconnects with backoff --
- * the announce is re-sent on every (re)connection, so the Brain's routing view
- * follows this Node's real presence.
+ * The Node's lifecycle owner: keeps the shared GatewayConnection alive
+ * (auth -> ws-ticket -> socket -> announce, reconnect with backoff) and
+ * answers the device act requests (notification.send / location.current)
+ * that arrive on it. The chat UI rides the same connection -- see
+ * GatewayConnection for why there is exactly one socket.
  */
 class NodeService : Service() {
 
     companion object {
-        val status = MutableStateFlow("disconnected")
+        val status get() = GatewayConnection.status
         val lastEvent = MutableStateFlow("")
 
         private const val SERVICE_CHANNEL = "iris_node"
@@ -63,7 +57,6 @@ class NodeService : Service() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val json = Json { ignoreUnknownKeys = true }
     private var alertId = 100
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -73,11 +66,12 @@ class NodeService : Service() {
         createChannels()
         startForeground(SERVICE_NOTIFICATION_ID, serviceNotification("Connecting to Brain…"))
         scope.launch { connectionLoop() }
+        scope.launch { GatewayConnection.events.collect { handleEvent(it) } }
     }
 
     override fun onDestroy() {
         scope.cancel()
-        status.value = "disconnected"
+        GatewayConnection.status.value = "disconnected"
         super.onDestroy()
     }
 
@@ -87,16 +81,15 @@ class NodeService : Service() {
             val prefs = Prefs(this)
             val client = GatewayClient(prefs.gatewayUrl)
             try {
-                status.value = "authenticating"
+                GatewayConnection.status.value = "authenticating"
                 check(client.login(prefs.username, prefs.password)) { "login rejected" }
                 val ws = client.openWs(client.mintTicket())
-                status.value = "connected"
                 updateServiceNotification("Connected — body announced to the Brain")
                 backoffSeconds = 3L
-                announce(ws)
-                consume(ws)
+                scope.launch { announce() }
+                GatewayConnection.pump(ws) // suspends until the socket drops
             } catch (error: Exception) {
-                status.value = "error: ${error.message ?: error.javaClass.simpleName}"
+                GatewayConnection.status.value = "error: ${error.message ?: error.javaClass.simpleName}"
             } finally {
                 client.close()
             }
@@ -106,8 +99,12 @@ class NodeService : Service() {
         }
     }
 
-    private suspend fun announce(ws: DefaultClientWebSocketSession) {
-        val frame = buildJsonObject {
+    private suspend fun announce() {
+        // Give pump() a beat to mark the socket live before announcing.
+        withTimeoutOrNull(3_000) {
+            while (!GatewayConnection.isConnected) delay(50)
+        }
+        GatewayConnection.send(buildJsonObject {
             put("jsonrpc", "2.0")
             put("id", "announce-${System.currentTimeMillis()}")
             put("method", "hermes.capabilities.announce")
@@ -116,25 +113,10 @@ class NodeService : Service() {
                 put("notification", buildJsonObject { put("available", true) })
                 put("location", buildJsonObject { put("available", hasLocationPermission()) })
             })
-        }
-        ws.send(Frame.Text(frame.toString()))
+        })
     }
 
-    private suspend fun consume(ws: DefaultClientWebSocketSession) {
-        for (frame in ws.incoming) {
-            val text = (frame as? Frame.Text)?.readText() ?: continue
-            // Wire protocol is newline-delimited JSON-RPC; one WS frame may
-            // carry several lines.
-            for (line in text.lineSequence()) {
-                if (line.isBlank()) continue
-                val msg = runCatching { json.parseToJsonElement(line).jsonObject }.getOrNull() ?: continue
-                handleEvent(ws, msg)
-            }
-        }
-    }
-
-    private suspend fun handleEvent(ws: DefaultClientWebSocketSession, msg: JsonObject) {
-        val params = msg["params"] as? JsonObject ?: return
+    private suspend fun handleEvent(params: JsonObject) {
         val type = params["type"]?.jsonPrimitive?.content ?: return
         val payload = params["payload"] as? JsonObject ?: JsonObject(emptyMap())
         val requestId = payload["request_id"]?.jsonPrimitive?.content ?: ""
@@ -145,13 +127,13 @@ class NodeService : Service() {
                 val body = payload["body"]?.jsonPrimitive?.content ?: ""
                 postAlert(title, body)
                 lastEvent.value = "notification: $title"
-                respond(ws, requestId) { put("success", true) }
+                respond(requestId) { put("success", true) }
             }
 
             "location.current.request" -> {
                 val fix = currentLocation()
                 lastEvent.value = if (fix != null) "location served" else "location unavailable"
-                respond(ws, requestId) {
+                respond(requestId) {
                     if (fix != null) {
                         put("success", true)
                         put("latitude", fix.latitude)
@@ -166,12 +148,11 @@ class NodeService : Service() {
     }
 
     private suspend fun respond(
-        ws: DefaultClientWebSocketSession,
         requestId: String,
         extra: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit,
     ) {
         if (requestId.isEmpty()) return
-        val frame = buildJsonObject {
+        GatewayConnection.send(buildJsonObject {
             put("jsonrpc", "2.0")
             put("id", "resp-$requestId")
             put("method", "device.action.response")
@@ -180,8 +161,7 @@ class NodeService : Service() {
                 put("device", "android")
                 extra()
             })
-        }
-        ws.send(Frame.Text(frame.toString()))
+        })
     }
 
     // ── Capability handlers ───────────────────────────────────────────
