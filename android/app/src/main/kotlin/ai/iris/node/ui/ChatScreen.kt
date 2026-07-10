@@ -28,8 +28,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.HorizontalDivider
@@ -80,6 +85,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    val context = LocalContext.current
     val sessions by vm.sessions.collectAsState()
     val activeId by vm.activeSessionId.collectAsState()
     val title by vm.activeTitle.collectAsState()
@@ -93,6 +99,9 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     var showModels by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    val prefs = remember { ai.iris.node.Prefs(context) }
+    var pinnedIds by remember { mutableStateOf(prefs.pinnedIds()) }
 
     androidx.activity.compose.BackHandler(enabled = drawer.isOpen || showModels) {
         if (showModels) showModels = false else scope.launch { drawer.close() }
@@ -108,8 +117,11 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
             DrawerContent(
                 sessions = sessions,
                 activeId = activeId,
+                pinnedIds = pinnedIds,
                 onNew = { vm.newSession(); scope.launch { drawer.close() } },
-                onSelect = { vm.selectSession(it); scope.launch { drawer.close() } }
+                onSelect = { vm.selectSession(it); scope.launch { drawer.close() } },
+                onTogglePin = { prefs.togglePin(it); pinnedIds = prefs.pinnedIds() },
+                onOpenSettings = { scope.launch { drawer.close() }; onOpenSettings() }
             )
         }
     ) {
@@ -128,11 +140,6 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                     },
                     title = {
                         Text(title, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    actions = {
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Rounded.Settings, "Settings", tint = Mono.mutedForeground)
-                        }
                     }
                 )
             },
@@ -193,15 +200,23 @@ private fun EmptyState(modifier: Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.iris_wordmark),
-            contentDescription = "Iris",
-            modifier = Modifier.fillMaxWidth(0.55f)
+            painter = painterResource(R.drawable.iris_logo),
+            contentDescription = "Íris",
+            modifier = Modifier.size(120.dp).clip(CircleShape)
+        )
+        Text(
+            "Íris",
+            color = Mono.foreground,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Light,
+            letterSpacing = 8.sp,
+            modifier = Modifier.padding(top = 20.dp, start = 8.dp)
         )
         Text(
             "One Brain. Multiple Bodies.",
             color = Mono.mutedForeground,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 16.dp)
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 6.dp)
         )
     }
 }
@@ -295,17 +310,44 @@ private fun Composer(
     val recorder = remember { VoiceRecorder(context) }
     var recording by remember { mutableStateOf(false) }
 
+    var showAddSheet by remember { mutableStateOf(false) }
+
+    fun attachUri(uri: android.net.Uri) = scope.launch {
+        runCatching {
+            val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+            val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            vm.attachImage(b64, "image-${System.currentTimeMillis()}.jpg")
+        }
+    }
+
     val imagePicker = rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) scope.launch {
+    ) { uri -> if (uri != null) attachUri(uri) }
+
+    // Files: any image via the document picker (distinct entry point from the
+    // photo picker, matching the Claude "Files" tile).
+    val filePicker = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri -> if (uri != null) attachUri(uri) }
+
+    // Camera: a thumbnail capture (no FileProvider needed); enough to attach a
+    // quick shot. Full-res capture is a later refinement.
+    val cameraLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) scope.launch {
             runCatching {
-                val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
-                val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                vm.attachImage(b64, "image-${System.currentTimeMillis()}.jpg")
+                val stream = java.io.ByteArrayOutputStream()
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
+                val b64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
+                vm.attachImage(b64, "camera-${System.currentTimeMillis()}.jpg")
             }
         }
     }
+
+    val cameraPermLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) cameraLauncher.launch(null) }
 
     val micPermLauncher = rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
@@ -384,13 +426,9 @@ private fun Composer(
                 Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Attach image
-                RoundIconButton(Icons.Rounded.Add, "Attach", bg = Mono.muted, tint = Mono.foreground) {
-                    imagePicker.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
+                // Attach (opens the "Add to chat" sheet)
+                RoundIconButton(Icons.Rounded.Add, "Add to chat", bg = Mono.muted, tint = Mono.foreground) {
+                    showAddSheet = true
                 }
                 Spacer(Modifier.width(8.dp))
                 // Model pill
@@ -439,6 +477,69 @@ private fun Composer(
             }
         }
     }
+
+    if (showAddSheet) {
+        AddToChatSheet(
+            onDismiss = { showAddSheet = false },
+            onCamera = {
+                showAddSheet = false
+                val granted = context.checkSelfPermission(android.Manifest.permission.CAMERA) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                if (granted) cameraLauncher.launch(null) else cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
+            },
+            onPhotos = {
+                showAddSheet = false
+                imagePicker.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                    )
+                )
+            },
+            onFiles = { showAddSheet = false; filePicker.launch("image/*") }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddToChatSheet(
+    onDismiss: () -> Unit,
+    onCamera: () -> Unit,
+    onPhotos: () -> Unit,
+    onFiles: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Mono.popover) {
+        Text(
+            "Add to chat",
+            color = Mono.foreground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AddTile("Camera", Icons.Rounded.CameraAlt, Modifier.weight(1f), onCamera)
+            AddTile("Photos", Icons.Rounded.PhotoLibrary, Modifier.weight(1f), onPhotos)
+            AddTile("Files", Icons.Rounded.InsertDriveFile, Modifier.weight(1f), onFiles)
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun AddTile(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Mono.card)
+            .clickable { onClick() }
+            .padding(vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, label, tint = Mono.foreground, modifier = Modifier.size(26.dp))
+        Text(label, color = Mono.secondaryForeground, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    }
 }
 
 @Composable
@@ -470,14 +571,19 @@ private fun RoundIconButton(
 private fun DrawerContent(
     sessions: List<ai.iris.node.SessionRow>,
     activeId: String?,
+    pinnedIds: Set<String>,
     onNew: () -> Unit,
     onSelect: (String) -> Unit,
+    onTogglePin: (String) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val filtered = remember(sessions, query) {
         if (query.isBlank()) sessions
         else sessions.filter { it.title.contains(query, true) || it.preview.contains(query, true) }
     }
+    val pinned = remember(filtered, pinnedIds) { filtered.filter { it.id in pinnedIds } }
+    val unpinned = remember(filtered, pinnedIds) { filtered.filter { it.id !in pinnedIds } }
 
     ModalDrawerSheet(drawerContainerColor = Mono.sidebarBackground) {
         Row(
@@ -490,11 +596,12 @@ private fun DrawerContent(
                 modifier = Modifier.size(28.dp).clip(CircleShape)
             )
             Text(
-                "Iris",
+                "Íris",
                 Modifier.padding(start = 10.dp),
                 color = Mono.foreground,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
+                letterSpacing = 2.sp
             )
         }
 
@@ -527,44 +634,69 @@ private fun DrawerContent(
             )
         )
 
-        Text(
-            "SESSIONS  ${filtered.size}",
-            color = Mono.mutedForeground,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(20.dp, 12.dp, 20.dp, 6.dp)
-        )
-        HorizontalDivider(color = Mono.sidebarBorder)
-
-        LazyColumn {
-            items(filtered, key = { it.id }) { row ->
-                val active = row.id == activeId
-                Row(
-                    Modifier.fillMaxWidth()
-                        .background(if (active) Mono.accent else Mono.sidebarBackground)
-                        .clickable { onSelect(row.id) }
-                        .padding(end = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        Modifier.width(3.dp).height(44.dp)
-                            .background(if (active) Iris.amber else Color.Transparent)
-                    )
-                    Column(Modifier.padding(17.dp, 10.dp)) {
-                        Text(
-                            row.title, color = Mono.foreground, fontSize = 14.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                        if (row.preview.isNotBlank()) {
-                            Text(
-                                row.preview, color = Mono.mutedForeground, fontSize = 12.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+        LazyColumn(Modifier.weight(1f)) {
+            if (pinned.isNotEmpty()) {
+                item(key = "hdr-pinned") { DrawerSectionLabel("Pinned") }
+                items(pinned, key = { "p-${it.id}" }) { row ->
+                    SessionDrawerRow(row, row.id == activeId, pinned = true, onSelect, onTogglePin)
                 }
             }
+            item(key = "hdr-sessions") { DrawerSectionLabel("Sessions  ${unpinned.size}") }
+            items(unpinned, key = { it.id }) { row ->
+                SessionDrawerRow(row, row.id == activeId, pinned = false, onSelect, onTogglePin)
+            }
         }
+
+        // Bottom-anchored settings entry, ChatGPT-style.
+        HorizontalDivider(color = Mono.sidebarBorder)
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenSettings() }
+                .padding(20.dp, 14.dp).navigationBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Settings, "Settings", tint = Mono.mutedForeground, modifier = Modifier.size(20.dp))
+            Text("Settings", color = Mono.foreground, fontSize = 15.sp, modifier = Modifier.padding(start = 14.dp))
+        }
+    }
+}
+
+@Composable
+private fun DrawerSectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        color = Mono.mutedForeground, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(20.dp, 14.dp, 20.dp, 6.dp)
+    )
+}
+
+@Composable
+private fun SessionDrawerRow(
+    row: ai.iris.node.SessionRow,
+    active: Boolean,
+    pinned: Boolean,
+    onSelect: (String) -> Unit,
+    onTogglePin: (String) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .background(if (active) Mono.accent else Mono.sidebarBackground)
+            .clickable { onSelect(row.id) }
+            .padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(3.dp).height(44.dp).background(if (active) Iris.amber else Color.Transparent))
+        Column(Modifier.padding(17.dp, 10.dp).weight(1f)) {
+            Text(row.title, color = Mono.foreground, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (row.preview.isNotBlank()) {
+                Text(row.preview, color = Mono.mutedForeground, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Icon(
+            if (pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
+            contentDescription = if (pinned) "Unpin" else "Pin",
+            tint = if (pinned) Iris.amber else Mono.mutedForeground,
+            modifier = Modifier.clickable { onTogglePin(row.id) }.padding(8.dp).size(16.dp)
+        )
     }
 }
 

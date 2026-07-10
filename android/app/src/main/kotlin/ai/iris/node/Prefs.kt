@@ -19,4 +19,14 @@ class Prefs(context: Context) {
     var password: String
         get() = prefs.getString("password", "") ?: ""
         set(value) = prefs.edit().putString("password", value).apply()
+
+    // Pinned sessions are client-side (matches the Desktop, which keeps them
+    // in localStorage -- there is no backend pin). Stored ids, not live ids.
+    fun pinnedIds(): Set<String> = prefs.getStringSet("pinned_ids", emptySet()) ?: emptySet()
+
+    fun togglePin(id: String) {
+        val next = pinnedIds().toMutableSet()
+        if (!next.remove(id)) next.add(id)
+        prefs.edit().putStringSet("pinned_ids", next).apply()
+    }
 }

@@ -292,6 +292,9 @@ private fun PermissionsScreen(onBack: () -> Unit) {
         add(CapPermission("🎙️", "Microphone",
             "Dictate messages by voice (speech to text).",
             Manifest.permission.RECORD_AUDIO))
+        add(CapPermission("📷", "Camera",
+            "Attach a photo taken with the camera.",
+            Manifest.permission.CAMERA))
     }
 
     SettingsScaffold("Permissions", onBack = onBack) {
@@ -369,9 +372,9 @@ private fun AboutScreen(onBack: () -> Unit) {
 
     SettingsScaffold("About", onBack = onBack) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Iris", color = Mono.foreground, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            Text("Íris", color = Mono.foreground, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
             Text(
-                "One Brain. Multiple Bodies. This phone is an Iris Node — a body " +
+                "One Brain. Multiple Bodies. This phone is an Íris Node — a body " +
                     "for a persistent Hermes agent, over the capability protocol.",
                 color = Mono.mutedForeground, fontSize = 13.sp
             )
