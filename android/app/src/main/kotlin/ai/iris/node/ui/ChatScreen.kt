@@ -26,8 +26,10 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Folder
@@ -218,9 +220,11 @@ private fun EmptyState(modifier: Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.iris_logo),
+            // Transparent-pupil logo: the black center/edges read as the app
+            // background, so no dark disc floating on the near-black surface.
+            painter = painterResource(R.drawable.iris_logo_t),
             contentDescription = "Íris",
-            modifier = Modifier.size(120.dp).clip(CircleShape)
+            modifier = Modifier.size(150.dp)
         )
         Text(
             "Íris",
@@ -228,7 +232,7 @@ private fun EmptyState(modifier: Modifier) {
             fontSize = 30.sp,
             fontWeight = FontWeight.Light,
             letterSpacing = 8.sp,
-            modifier = Modifier.padding(top = 20.dp, start = 8.dp)
+            modifier = Modifier.padding(top = 8.dp, start = 8.dp)
         )
         Text(
             "One Brain. Multiple Bodies.",
@@ -619,9 +623,9 @@ private fun DrawerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = painterResource(R.drawable.iris_logo),
+                painter = painterResource(R.drawable.iris_logo_t),
                 contentDescription = null,
-                modifier = Modifier.size(28.dp).clip(CircleShape)
+                modifier = Modifier.size(30.dp)
             )
             Text(
                 "Íris",
@@ -631,20 +635,23 @@ private fun DrawerContent(
                 fontSize = 18.sp,
                 letterSpacing = 2.sp
             )
-            // Profile chip (only meaningful with >1 profile).
-            if (profiles.size > 1) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(50)).background(Mono.card)
-                        .clickable { showProfiles = true }.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(6.dp).background(Iris.amber, CircleShape))
-                    Text(activeProfile, color = Mono.secondaryForeground, fontSize = 12.sp,
-                        modifier = Modifier.padding(start = 6.dp))
-                    Text(" ⌄", color = Mono.mutedForeground, fontSize = 12.sp)
-                }
-            }
         }
+
+        // Profile switcher: a labelled row so it's obviously the profile
+        // control, not a stray dot. Tapping opens the profile list.
+        Row(
+            Modifier.fillMaxWidth().clickable { showProfiles = true }.padding(20.dp, 4.dp, 16.dp, 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.AccountCircle, null, tint = Iris.blue, modifier = Modifier.size(22.dp))
+            Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                Text("Profile", color = Mono.mutedForeground, fontSize = 11.sp)
+                Text(activeProfile, color = Mono.foreground, fontSize = 14.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(Icons.Rounded.UnfoldMore, "Switch profile", tint = Mono.mutedForeground, modifier = Modifier.size(18.dp))
+        }
+        HorizontalDivider(color = Mono.sidebarBorder)
 
         Row(
             Modifier.fillMaxWidth().clickable { onNew() }.padding(20.dp, 8.dp),
