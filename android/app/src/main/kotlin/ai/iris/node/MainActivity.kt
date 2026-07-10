@@ -70,6 +70,11 @@ private fun Root() {
     }
 
     if (showSettings) {
+        // System back returns to the chat instead of closing the app --
+        // except on first run (no credentials yet), where there is no chat
+        // to return to and the default close behavior is right.
+        val canGoBack = prefs.username.isNotEmpty() && prefs.password.isNotEmpty()
+        androidx.activity.compose.BackHandler(enabled = canGoBack) { showSettings = false }
         SettingsScreen(prefs, onDone = { showSettings = false })
     } else {
         ChatScreen(vm, onOpenSettings = { showSettings = true })

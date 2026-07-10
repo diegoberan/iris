@@ -69,14 +69,22 @@ class ChatViewModel : ViewModel() {
 
     fun selectSession(id: String) {
         viewModelScope.launch {
+            errorNotice.value = ""
             runCatching {
-                activeSessionId.value = id
                 activeTitle.value = sessions.value.firstOrNull { it.id == id }?.title ?: "Chat"
                 messages.value = emptyList()
-                // Resume brings a stored session back into gateway memory;
-                // already-active sessions answer with an error we can ignore.
-                runCatching { GatewayConnection.request("session.resume", buildJsonObject { put("session_id", id) }, 60_000) }
-                val history = GatewayConnection.request("session.history", buildJsonObject { put("session_id", id) })
+                // session.list hands out STORED ids (state.db keys); resume maps
+                // one to a LIVE session id (short hex) -- with a fast path that
+                // returns the existing live id when it's already resumed. Every
+                // follow-up RPC must use the live id, not the stored one.
+                val resumed = GatewayConnection.request(
+                    "session.resume",
+                    buildJsonObject { put("session_id", id) },
+                    60_000
+                )
+                val liveId = resumed.str("session_id") ?: id
+                activeSessionId.value = liveId
+                val history = GatewayConnection.request("session.history", buildJsonObject { put("session_id", liveId) })
                 messages.value = (history["messages"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { row ->
                     val obj = row as? JsonObject ?: return@mapNotNull null
                     val role = obj.str("role") ?: return@mapNotNull null
@@ -91,6 +99,7 @@ class ChatViewModel : ViewModel() {
 
     fun newSession() {
         viewModelScope.launch {
+            errorNotice.value = ""
             runCatching {
                 val result = GatewayConnection.request(
                     "session.create",

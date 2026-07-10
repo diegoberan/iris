@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,12 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     var showModels by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    // System back closes the drawer (or the model sheet) before it can
+    // close the app -- matching every drawer-based Android app.
+    androidx.activity.compose.BackHandler(enabled = drawer.isOpen || showModels) {
+        if (showModels) showModels = false else scope.launch { drawer.close() }
+    }
 
     LaunchedEffect(messages.size, (messages.lastOrNull()?.text ?: "").length) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
@@ -163,31 +170,47 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                         )
                     }
                     Row(
-                        Modifier.fillMaxWidth().padding(12.dp),
+                        Modifier.fillMaxWidth().padding(12.dp, 8.dp, 12.dp, 12.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         OutlinedTextField(
                             value = draft,
                             onValueChange = { draft = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Message", color = Mono.mutedForeground) },
-                            shape = RoundedCornerShape(22.dp),
-                            maxLines = 5
+                            placeholder = { Text("Message Hermes…", color = Mono.mutedForeground) },
+                            shape = RoundedCornerShape(24.dp),
+                            maxLines = 5,
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Mono.card,
+                                unfocusedContainerColor = Mono.card,
+                                focusedBorderColor = Mono.ring,
+                                unfocusedBorderColor = Mono.border,
+                                focusedTextColor = Mono.foreground,
+                                unfocusedTextColor = Mono.foreground,
+                                cursorColor = Mono.foreground
+                            )
                         )
-                        IconButton(
-                            onClick = {
-                                if (busy) {
-                                    vm.interrupt()
-                                } else if (draft.isNotBlank()) {
-                                    vm.sendPrompt(draft.trim()); draft = ""
+                        Box(
+                            Modifier
+                                .padding(start = 8.dp, bottom = 4.dp)
+                                .background(
+                                    if (busy) Mono.destructive else Mono.primary,
+                                    RoundedCornerShape(50)
+                                )
+                                .clickable {
+                                    if (busy) {
+                                        vm.interrupt()
+                                    } else if (draft.isNotBlank()) {
+                                        vm.sendPrompt(draft.trim()); draft = ""
+                                    }
                                 }
-                            },
-                            modifier = Modifier.padding(start = 6.dp)
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                if (busy) "■" else "➤",
-                                color = if (busy) Mono.destructive else Mono.foreground,
-                                fontSize = 20.sp
+                                if (busy) "■" else "↑",
+                                color = if (busy) Color.White else Mono.primaryForeground,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -221,9 +244,16 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                             message.text + if (message.streaming) " ▍" else "",
                             color = Mono.foreground,
                             fontSize = 15.sp,
+                            lineHeight = 22.sp,
                             fontFamily = Sans,
                             modifier = Modifier.fillMaxWidth()
                         )
+                    }
+                }
+                if (busy && messages.lastOrNull()?.streaming != true) {
+                    // Turn accepted, first token not here yet.
+                    item(key = "thinking") {
+                        Text("thinking…", color = Mono.mutedForeground, fontSize = 13.sp)
                     }
                 }
             }
