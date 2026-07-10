@@ -13,7 +13,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-data class ChatMessage(val role: String, val text: String, val streaming: Boolean = false)
+data class ChatMessage(
+    val role: String,
+    val text: String,
+    val streaming: Boolean = false,
+    /** Gateway-local path of an attached audio file (TTS voice reply),
+     *  extracted from the message's MEDIA: line. Fetched via /api/media. */
+    val mediaPath: String? = null,
+)
 
 data class SessionRow(val id: String, val title: String, val preview: String)
 
@@ -91,8 +98,8 @@ class ChatViewModel : ViewModel() {
                     if (role != "user" && role != "assistant") return@mapNotNull null
                     val text = obj.textContent() ?: return@mapNotNull null
                     if (text.isBlank()) return@mapNotNull null
-                    ChatMessage(role, text)
-                }
+                    withMedia(role, text)
+                }.filter { it.text.isNotBlank() || it.mediaPath != null }
             }.onFailure { errorNotice.value = "resume: ${it.message}" }
         }
     }
@@ -202,8 +209,8 @@ class ChatViewModel : ViewModel() {
                 val full = payload.textContent() ?: payload.str("text")
                 messages.value = when {
                     last != null && last.streaming ->
-                        current.dropLast(1) + last.copy(text = full ?: last.text, streaming = false)
-                    !full.isNullOrBlank() -> current + ChatMessage("assistant", full)
+                        current.dropLast(1) + withMedia("assistant", full ?: last.text)
+                    !full.isNullOrBlank() -> current + withMedia("assistant", full)
                     else -> current
                 }
                 refreshSessions() // titles update after first turns
@@ -224,6 +231,20 @@ class ChatViewModel : ViewModel() {
     }
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.content
+
+    // Same convention the Desktop renders: a "MEDIA:<gateway-local path>"
+    // line inside the message text marks an attachment (TTS voice replies).
+    private val mediaLineRe = Regex("(?m)^[\\t ]*[`\"']?MEDIA:\\s*([^`\"'\\n]+?)[`\"']?[\\t ]*$")
+
+    private fun withMedia(role: String, text: String, streaming: Boolean = false): ChatMessage {
+        val match = mediaLineRe.find(text)
+        return ChatMessage(
+            role = role,
+            text = mediaLineRe.replace(text, "").trim(),
+            streaming = streaming,
+            mediaPath = match?.groupValues?.get(1)?.trim()
+        )
+    }
 
     /** Message text may be a plain string or a parts array [{type:text,text}]. */
     private fun JsonObject.textContent(): String? {

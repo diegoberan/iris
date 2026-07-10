@@ -86,11 +86,13 @@ class NodeService : Service() {
                 val ws = client.openWs(client.mintTicket())
                 updateServiceNotification("Connected — body announced to the Brain")
                 backoffSeconds = 3L
+                GatewayConnection.rest = client
                 scope.launch { announce() }
                 GatewayConnection.pump(ws) // suspends until the socket drops
             } catch (error: Exception) {
                 GatewayConnection.status.value = "error: ${error.message ?: error.javaClass.simpleName}"
             } finally {
+                GatewayConnection.rest = null
                 client.close()
             }
             updateServiceNotification("Disconnected — retrying…")

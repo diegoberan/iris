@@ -240,14 +240,21 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                             )
                         }
                     } else {
-                        Text(
-                            message.text + if (message.streaming) " ▍" else "",
-                            color = Mono.foreground,
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp,
-                            fontFamily = Sans,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (message.mediaPath != null) {
+                                AudioBubble(message.mediaPath)
+                            }
+                            if (message.text.isNotBlank() || message.streaming) {
+                                Text(
+                                    message.text + if (message.streaming) " ▍" else "",
+                                    color = Mono.foreground,
+                                    fontSize = 15.sp,
+                                    lineHeight = 22.sp,
+                                    fontFamily = Sans,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                 }
                 if (busy && messages.lastOrNull()?.streaming != true) {

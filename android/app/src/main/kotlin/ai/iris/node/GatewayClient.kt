@@ -8,6 +8,7 @@ import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -29,6 +30,9 @@ private data class LoginReply(val ok: Boolean = false)
 
 @Serializable
 private data class TicketReply(val ticket: String = "")
+
+@Serializable
+private data class MediaReply(@kotlinx.serialization.SerialName("data_url") val dataUrl: String = "")
 
 /**
  * Auth + WebSocket plumbing against a gated Hermes gateway. Mirrors what the
@@ -68,6 +72,16 @@ class GatewayClient(private val baseUrl: String) {
     suspend fun openWs(ticket: String): DefaultClientWebSocketSession {
         val wsBase = base.replaceFirst("http", "ws") // http->ws, https->wss
         return http.webSocketSession("$wsBase/api/ws?ticket=$ticket")
+    }
+
+    /** Fetch a gateway-local media file (TTS audio, images) as a data URL.
+     *  The file lives on the Brain's disk; /api/media is the authenticated
+     *  bridge remote clients use to read it (same one the Desktop uses). */
+    suspend fun fetchMediaDataUrl(path: String): String? {
+        val reply: MediaReply = http.get("$base/api/media") {
+            url { parameters.append("path", path) }
+        }.body()
+        return reply.dataUrl.ifBlank { null }
     }
 
     fun close() = http.close()

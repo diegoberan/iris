@@ -37,6 +37,12 @@ object GatewayConnection {
     private val pending = ConcurrentHashMap<String, CompletableDeferred<JsonObject>>()
     private val nextId = AtomicLong(1)
 
+    /** The authenticated HTTP side of the live connection (cookie jar shared
+     *  with the socket). Set by NodeService while connected; REST consumers
+     *  (media fetch) must tolerate null between reconnects. */
+    @Volatile
+    var rest: GatewayClient? = null
+
     val isConnected: Boolean get() = status.value == "connected"
 
     /** Send a JSON-RPC request and await its response. Throws on gateway error
