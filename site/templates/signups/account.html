@@ -9,7 +9,7 @@
   </div>
 </section>
 
-<div class="main-narrow" style="padding-bottom: 100px; max-width: 960px;">
+<div class="main-narrow" style="padding-bottom: 60px; max-width: 960px;">
   <div class="dash-container">
     
     <!-- Sidebar Navigation -->
@@ -108,10 +108,7 @@
               <span style="color: var(--muted-fg); font-size: 14px;">Subscribed Since:</span>
               <span style="color: var(--fg); font-size: 14.5px;">{{ signup.created_at|date:"F j, Y" }}</span>
             </div>
-            <div style="display: flex; gap: 12px;">
-              <a href="{% url 'billing_portal' %}" class="btn-outline btn-block" style="text-align: center; flex: 1;">Manage Billing</a>
-              <a href="{% url 'download_data' %}" class="btn-outline btn-block" style="text-align: center; flex: 1;">Download my data</a>
-            </div>
+            <a href="{% url 'billing_portal' %}" class="btn-outline btn-block" style="text-align: center;">Manage Billing</a>
           </div>
         {% endif %}
       </div>
@@ -121,21 +118,26 @@
         {% if not signup or signup.status == 'pending_payment' %}
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div style="font-size: 40px; margin-bottom: 16px;">🖥️</div>
-            <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">No Active Server</h3>
-            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">You don't have an active VM instance yet. Subscribe to a plan under the <strong>Assinaturas</strong> tab to boot up your Iris.</p>
+            <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">No Active Instance</h3>
+            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">You don't have an active instance yet. Subscribe to a plan under the <strong>Assinaturas</strong> tab to deploy your server.</p>
             <button class="btn btn-small" onclick="switchTab('subscription')">Choose a Plan</button>
           </div>
         {% elif signup.status == 'pending_key' %}
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div style="font-size: 40px; margin-bottom: 16px;">🔑</div>
             <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">API Key Required</h3>
-            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">Your subscription is active, but we need your provider API credentials before we can configure and launch your server.</p>
+            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">Your subscription is active, but we need your provider API credentials before we can configure and deploy your server.</p>
             <button class="btn btn-small" onclick="switchTab('keys')">Configure API Key</button>
           </div>
         {% elif signup.status == 'ready' or signup.status == 'provisioning' %}
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div class="loader" style="margin: 0 auto 24px;"></div>
-            <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">Provisioning your Iris...</h3>
+            
+            <div style="display: inline-block; background: var(--amber-soft); color: var(--amber); font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;">
+              🟡 In Deployment (Em implantação...)
+            </div>
+            
+            <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">Deploying your server...</h3>
             <p style="color: var(--muted-fg); max-width: 460px; margin: 0 auto 24px; line-height: 1.6;">We're setting up your dedicated instance on our GPU nodes. This takes up to 6 minutes — this tab will refresh once your credentials are ready.</p>
             
             <div class="next-up" style="text-align: left; max-width: 460px; margin: 0 auto;">
@@ -144,7 +146,7 @@
               <div class="item">
                 <span class="icon-next" style="color: var(--amber);">→</span>
                 <span style="color: var(--amber)">
-                  {% if signup.status == 'ready' %}Waiting for provisioning slot...{% else %}Instance provisioning in progress...{% endif %}
+                  {% if signup.status == 'ready' %}Waiting for slot...{% else %}Deployment in progress...{% endif %}
                 </span>
               </div>
               <div class="item"><span class="icon-next">→</span><span>Connect from your devices</span></div>
@@ -153,8 +155,12 @@
         {% elif signup.status == 'provisioned' %}
           <!-- Connection Credentials Card -->
           <div class="dash-card">
+            <div style="display: inline-block; background: rgba(76, 175, 80, 0.15); color: #4caf50; font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;">
+              🟢 Deployed (Ativo)
+            </div>
+            
             <h3>Connection Details</h3>
-            <p style="color: var(--muted-fg); font-size: 14.5px; margin-bottom: 24px;">Your private VM instance is active and online. Paste these details into your Hermes client app to connect.</p>
+            <p style="color: var(--muted-fg); font-size: 14.5px; margin-bottom: 24px;">Your private server instance is active and online. Paste these details into your client app to connect.</p>
             
             <div style="margin-bottom: 20px;">
               <label class="dash-label">Gateway URL</label>
@@ -183,9 +189,13 @@
           </div>
         {% elif signup.status == 'provision_failed' %}
           <div class="dash-card">
-            <h3 style="color: var(--destructive);">Provisioning Failed</h3>
+            <div style="display: inline-block; background: rgba(168, 64, 64, 0.15); color: var(--destructive); font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;">
+              🔴 Failed (Falha no deploy)
+            </div>
+            
+            <h3>Deployment Failed</h3>
             <p style="color: var(--secondary-fg); font-size: 14.5px; line-height: 1.6; margin-bottom: 24px;">
-              Our automatic deployment engine encountered an error while booting your virtual machine. This could be due to a temporary GPU pool shortage or an invalid API key.
+              Our automatic deployment engine encountered an error while booting your server. This could be due to a temporary GPU pool shortage or an invalid API key.
             </p>
             <div style="display: flex; gap: 12px;">
               <a href="{% url 'retry_provisioning' %}" class="btn" style="flex: 1; text-align: center;">Retry Setup</a>
@@ -207,13 +217,13 @@
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div style="font-size: 40px; margin-bottom: 16px;">⚡</div>
             <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">Managed Compute Plan</h3>
-            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto; line-height: 1.6;">API credentials are not required for Managed plans. Your VM communicates directly with our shared AMD GPU pool.</p>
+            <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto; line-height: 1.6;">API credentials are not required for Managed plans. Your server communicates directly with our shared AMD GPU pool.</p>
           </div>
         {% elif signup.plan == 'byok' %}
           <!-- BYOK Key Update Form -->
           <div class="dash-card">
             <h3>Model Provider Configuration</h3>
-            <p style="color: var(--muted-fg); font-size: 14.5px; margin-bottom: 24px;">Configure or update your model provider API key. Changes will be synchronized to your VM instance automatically.</p>
+            <p style="color: var(--muted-fg); font-size: 14.5px; margin-bottom: 24px;">Configure or update your model provider API key. Changes will be synchronized to your server automatically.</p>
             
             {% if signup.status == 'pending_key' %}
               <form action="{% url 'submit_api_key' %}" method="post">
@@ -242,7 +252,7 @@
               </div>
               
               <button type="submit" class="btn btn-small btn-block" style="text-align: center;">
-                {% if signup.status == 'pending_key' %}Finish Setup & Launch{% else %}Update Configuration{% endif %}
+                Salvar Configurações
               </button>
             </form>
           </div>
@@ -250,6 +260,16 @@
       </div>
 
     </main>
+  </div>
+  
+  <!-- Data Download mockup at the very bottom -->
+  <div style="margin-top: 60px; text-align: center; border-top: 1px solid var(--border); padding-top: 40px;">
+    <button class="btn-outline" style="opacity: 0.4; cursor: not-allowed; padding: 12px 28px; font-size: 14px;" disabled>
+      Download My Data
+    </button>
+    <div style="font-size: 11px; color: var(--dim-fg); margin-top: 8px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1px;">
+      Coming Soon (Em Breve)
+    </div>
   </div>
 </div>
 
