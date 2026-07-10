@@ -49,5 +49,8 @@ One field bug found and fixed on the way: kotlinx.serialization omits
 default-valued fields unless `encodeDefaults = true`, so the login body shipped
 without `provider: "basic"` and 422'd (surfaced as "login rejected").
 
-Remaining for the demo: agent-driven run through the `iris-body` skill and
-footage capture (notification arriving + Watch vibration mirror).
+**Agent-driven run (same night):** with the `iris-body` skill loaded, the user
+asked the production agent for a phone notification and for their current
+location in a live session — both actions completed end-to-end on the physical
+device. Gate 2 closed green. Remaining: footage capture for the video
+(notification arriving + Watch vibration mirror).
