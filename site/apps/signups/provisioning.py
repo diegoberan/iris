@@ -88,9 +88,21 @@ def _run_provisioning(signup_id: int) -> None:
         with open(password_file, "w") as f:
             f.write(password)
         os.chmod(password_file, 0o600)
-            
+
+        # Give the tenant its own HTTPS subdomain instead of a bare IP:port.
+        # Caddy auto-issues a Let's Encrypt cert per-hostname (HTTP-01, no
+        # wildcard cert / DNS API needed) as long as *.iris.dberan.dev
+        # already resolves to this pod.
+        hostname = f"u{signup.id}.iris.dberan.dev"
+        site_block = f"{hostname} {{\n    reverse_proxy localhost:{port}\n}}\n"
+        sites_dir = "/etc/caddy/sites.d"
+        os.makedirs(sites_dir, exist_ok=True)
+        with open(os.path.join(sites_dir, f"signup_{signup.id}.caddy"), "w") as f:
+            f.write(site_block)
+        subprocess.run(["systemctl", "reload", "caddy"], capture_output=True)
+
         # Update signup object
-        signup.provision_url = f"http://129.212.190.147:{port}/"
+        signup.provision_url = f"https://{hostname}/"
         signup.status = Signup.Status.PROVISIONED
         signup.provisioned_at = timezone.now()
         signup.save()
@@ -125,29 +137,33 @@ def update_provisioned_config(signup):
         Signup.Provider.GEMINI: "GEMINI_API_KEY",
     }
 
-    target_dir = os.path.join(HERMES_LAB_ROOT, "provisioning", "overlays", f"signup_{signup.id}")
-    env_path = os.path.join(target_dir, "env.d")
-
-    # 1. Update the env.d file inside the overlay
-    lines = []
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                line_str = line.strip()
-                if line_str and not any(line_str.startswith(var) for var in provider_vars.values()):
-                    lines.append(line_str)
-
     var_name = provider_vars.get(signup.provider, "OPENROUTER_API_KEY")
-    lines.append(f"{var_name}={signup.api_key}")
+    new_line = f"{var_name}={signup.api_key}"
 
-    with open(env_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
-
-    # 2. Write the env.d file to the active VM's home directory
-    user_env_path = f"/home/signup_{signup.id}/.hermes/env.d"
-    if os.path.exists(os.path.dirname(user_env_path)):
-        with open(user_env_path, "w") as f:
+    def _replace_provider_line(path: str) -> None:
+        lines = []
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                for raw_line in f:
+                    line_str = raw_line.rstrip("\n")
+                    if line_str.strip() and not any(
+                        line_str.startswith(var) for var in provider_vars.values()
+                    ):
+                        lines.append(line_str)
+        lines.append(new_line)
+        with open(path, "w") as f:
             f.write("\n".join(lines) + "\n")
+
+    # 1. Update env.d in the overlay (so a future re-provision/update-user.sh
+    #    run picks up the right key -- this is provisioning-time input, the
+    #    running gateway never reads it directly).
+    target_dir = os.path.join(HERMES_LAB_ROOT, "provisioning", "overlays", f"signup_{signup.id}")
+    _replace_provider_line(os.path.join(target_dir, "env.d"))
+
+    # 2. Update the LIVE .env the running gateway/dashboard actually reads.
+    user_env_path = f"/home/signup_{signup.id}/.hermes/.env"
+    if os.path.exists(user_env_path):
+        _replace_provider_line(user_env_path)
         shutil.chown(user_env_path, user=f"signup_{signup.id}", group=f"signup_{signup.id}")
 
     # 3. Restart the systemd services to pick up the new key

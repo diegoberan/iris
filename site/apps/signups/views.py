@@ -1,10 +1,8 @@
 import json
 import stripe
-import io
-import zipfile
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, JsonResponse, FileResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -67,6 +65,12 @@ def create_checkout(request: HttpRequest) -> JsonResponse:
         cancel_url=f"{settings.SITE_URL}/account/",
     )
 
+    # Reuse the site password as the dashboard password when we have it in
+    # this session (set at register/login); otherwise generate a fresh
+    # random one -- never fall back to a shared constant.
+    import secrets
+    provision_password = request.session.get("user_plain_password") or secrets.token_hex(6)
+
     # Link the Signup to the User
     Signup.objects.create(
         user=request.user,
@@ -75,7 +79,7 @@ def create_checkout(request: HttpRequest) -> JsonResponse:
         stripe_session_id=session.id,
         status=Signup.Status.PENDING_PAYMENT,
         provision_username=request.user.username,
-        provision_password=request.session.get("user_plain_password", "039148b140e3") # fallback
+        provision_password=provision_password,
     )
 
     return JsonResponse({"url": session.url})
@@ -94,15 +98,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"STRIPE WEBHOOK VERIFICATION ERROR: {e}")
-        
-        if settings.DEBUG:
-            logger.warning("DEBUG is True: falling back to direct JSON payload parsing.")
-            try:
-                event = json.loads(payload)
-            except ValueError:
-                return HttpResponse(status=400)
-        else:
-            return HttpResponse(status=400)
+        return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
@@ -212,27 +208,6 @@ def update_config(request: HttpRequest) -> HttpResponse:
             update_provisioned_config(signup_obj)
             
     return redirect("account")
-
-
-@login_required
-def download_data(request: HttpRequest) -> HttpResponse:
-    # Generate an in-memory mock zip archive
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr('chat_history.json', json.dumps([
-            {"role": "user", "content": "Hello, Iris!"},
-            {"role": "assistant", "content": "Hello! I am your persistent personal agent. How can I help you today?"}
-        ], indent=2))
-        zip_file.writestr('settings.json', json.dumps({
-            "theme": "dark",
-            "voice": "en-US-AriaNeural",
-            "model_provider": "openrouter"
-        }, indent=2))
-        zip_file.writestr('README.txt', "This zip file contains a copy of your Iris chat history and settings.")
-
-    buffer.seek(0)
-    response = FileResponse(buffer, as_attachment=True, filename='iris_my_data_backup.zip')
-    return response
 
 
 @login_required
