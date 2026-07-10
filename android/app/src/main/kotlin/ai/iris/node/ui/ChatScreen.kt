@@ -30,6 +30,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Mic
@@ -87,6 +89,10 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
 
     val context = LocalContext.current
     val sessions by vm.sessions.collectAsState()
+    val projects by vm.projects.collectAsState()
+    val scopedIds by vm.scopedSessionIds.collectAsState()
+    val profiles by vm.profiles.collectAsState()
+    val activeProfile by vm.activeProfile.collectAsState()
     val activeId by vm.activeSessionId.collectAsState()
     val title by vm.activeTitle.collectAsState()
     val transcript by vm.transcript.collectAsState()
@@ -102,6 +108,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
 
     val prefs = remember { ai.iris.node.Prefs(context) }
     var pinnedIds by remember { mutableStateOf(prefs.pinnedIds()) }
+    var hiddenModels by remember { mutableStateOf(prefs.hiddenModels()) }
 
     androidx.activity.compose.BackHandler(enabled = drawer.isOpen || showModels) {
         if (showModels) showModels = false else scope.launch { drawer.close() }
@@ -116,11 +123,16 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
         drawerContent = {
             DrawerContent(
                 sessions = sessions,
+                projects = projects,
+                scopedIds = scopedIds,
+                profiles = profiles,
+                activeProfile = activeProfile,
                 activeId = activeId,
                 pinnedIds = pinnedIds,
                 onNew = { vm.newSession(); scope.launch { drawer.close() } },
                 onSelect = { vm.selectSession(it); scope.launch { drawer.close() } },
                 onTogglePin = { prefs.togglePin(it); pinnedIds = prefs.pinnedIds() },
+                onSwitchProfile = { prefs.activeProfile = it; vm.switchProfile(it) },
                 onOpenSettings = { scope.launch { drawer.close() }; onOpenSettings() }
             )
         }
@@ -149,7 +161,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
                     draft = draft,
                     onDraft = { draft = it },
                     busy = busy,
-                    modelLabel = if (model.isNotEmpty()) model.substringAfterLast('/') else status,
+                    modelLabel = if (model.isNotEmpty()) model.substringAfterLast('/') else "Select model",
                     tierNotice = tierNotice,
                     errorNotice = errorNotice,
                     onModelTap = { vm.loadModelOptions(); showModels = true },
@@ -186,7 +198,13 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     }
 
     if (showModels) {
-        ModelSheet(vm, model, onDismiss = { showModels = false })
+        ModelSheet(
+            vm = vm,
+            currentModel = model,
+            hiddenModels = hiddenModels,
+            onToggleHidden = { prefs.toggleModelHidden(it); hiddenModels = prefs.hiddenModels() },
+            onDismiss = { showModels = false }
+        )
     }
 }
 
@@ -567,23 +585,33 @@ private fun RoundIconButton(
 
 // ── Drawer ────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DrawerContent(
     sessions: List<ai.iris.node.SessionRow>,
+    projects: List<ai.iris.node.ProjectRow>,
+    scopedIds: Set<String>,
+    profiles: List<ai.iris.node.ProfileRow>,
+    activeProfile: String,
     activeId: String?,
     pinnedIds: Set<String>,
     onNew: () -> Unit,
     onSelect: (String) -> Unit,
     onTogglePin: (String) -> Unit,
+    onSwitchProfile: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val filtered = remember(sessions, query) {
-        if (query.isBlank()) sessions
-        else sessions.filter { it.title.contains(query, true) || it.preview.contains(query, true) }
+    // Flat sessions exclude those a project already claims (Desktop parity).
+    val flat = remember(sessions, scopedIds) { sessions.filter { it.id !in scopedIds } }
+    val filtered = remember(flat, query) {
+        if (query.isBlank()) flat
+        else flat.filter { it.title.contains(query, true) || it.preview.contains(query, true) }
     }
     val pinned = remember(filtered, pinnedIds) { filtered.filter { it.id in pinnedIds } }
     val unpinned = remember(filtered, pinnedIds) { filtered.filter { it.id !in pinnedIds } }
+    var expandedProject by remember { mutableStateOf<String?>(null) }
+    var showProfiles by remember { mutableStateOf(false) }
 
     ModalDrawerSheet(drawerContainerColor = Mono.sidebarBackground) {
         Row(
@@ -597,12 +625,25 @@ private fun DrawerContent(
             )
             Text(
                 "Íris",
-                Modifier.padding(start = 10.dp),
+                Modifier.padding(start = 10.dp).weight(1f),
                 color = Mono.foreground,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 letterSpacing = 2.sp
             )
+            // Profile chip (only meaningful with >1 profile).
+            if (profiles.size > 1) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).background(Mono.card)
+                        .clickable { showProfiles = true }.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(6.dp).background(Iris.amber, CircleShape))
+                    Text(activeProfile, color = Mono.secondaryForeground, fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 6.dp))
+                    Text(" ⌄", color = Mono.mutedForeground, fontSize = 12.sp)
+                }
+            }
         }
 
         Row(
@@ -641,6 +682,43 @@ private fun DrawerContent(
                     SessionDrawerRow(row, row.id == activeId, pinned = true, onSelect, onTogglePin)
                 }
             }
+
+            if (projects.isNotEmpty() && query.isBlank()) {
+                item(key = "hdr-projects") { DrawerSectionLabel("Projects") }
+                projects.forEach { project ->
+                    item(key = "proj-${project.id}") {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { expandedProject = if (expandedProject == project.id) null else project.id }
+                                .padding(20.dp, 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (expandedProject == project.id) Icons.Rounded.FolderOpen else Icons.Rounded.Folder,
+                                null, tint = Iris.amber, modifier = Modifier.size(18.dp)
+                            )
+                            Text(project.label, color = Mono.foreground, fontSize = 14.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 12.dp).weight(1f))
+                            Text("${project.sessionCount}", color = Mono.mutedForeground, fontSize = 12.sp)
+                        }
+                    }
+                    if (expandedProject == project.id) {
+                        items(project.sessions, key = { "ps-${it.id}" }) { row ->
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(if (row.id == activeId) Mono.accent else Mono.sidebarBackground)
+                                    .clickable { onSelect(row.id) }
+                                    .padding(start = 40.dp, top = 8.dp, bottom = 8.dp, end = 16.dp)
+                            ) {
+                                Text(row.title, color = Mono.secondaryForeground, fontSize = 13.sp,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+
             item(key = "hdr-sessions") { DrawerSectionLabel("Sessions  ${unpinned.size}") }
             items(unpinned, key = { it.id }) { row ->
                 SessionDrawerRow(row, row.id == activeId, pinned = false, onSelect, onTogglePin)
@@ -656,6 +734,34 @@ private fun DrawerContent(
         ) {
             Icon(Icons.Rounded.Settings, "Settings", tint = Mono.mutedForeground, modifier = Modifier.size(20.dp))
             Text("Settings", color = Mono.foreground, fontSize = 15.sp, modifier = Modifier.padding(start = 14.dp))
+        }
+    }
+
+    if (showProfiles) {
+        ModalBottomSheet(onDismissRequest = { showProfiles = false }, containerColor = Mono.popover) {
+            Text("Profile", color = Mono.foreground, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            profiles.forEach { p ->
+                val active = p.name == activeProfile
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { onSwitchProfile(p.name); showProfiles = false }
+                        .padding(20.dp, 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(6.dp).background(if (active) Iris.amber else Color.Transparent, CircleShape))
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text(p.name + if (p.isDefault) "  (default)" else "",
+                            color = if (active) Mono.foreground else Mono.secondaryForeground, fontSize = 14.sp)
+                        if (p.description.isNotBlank()) {
+                            Text(p.description, color = Mono.mutedForeground, fontSize = 12.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp).navigationBarsPadding())
         }
     }
 }
@@ -704,42 +810,128 @@ private fun SessionDrawerRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ModelSheet(vm: ChatViewModel, currentModel: String, onDismiss: () -> Unit) {
+private fun ModelSheet(
+    vm: ChatViewModel,
+    currentModel: String,
+    hiddenModels: Set<String>,
+    onToggleHidden: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val providers by vm.providers.collectAsState()
+    var search by remember { mutableStateOf("") }
+    var editMode by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun visible(slug: String, model: String) = "$slug:$model" !in hiddenModels
+    val q = search.trim().lowercase()
+
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Mono.popover) {
-        LazyColumn(Modifier.padding(bottom = 24.dp)) {
+        Text(
+            if (editMode) "Edit models" else "Switch model",
+            color = Mono.foreground, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+
+        if (!editMode) {
+            OutlinedTextField(
+                value = search, onValueChange = { search = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                placeholder = { Text("Search models…", color = Mono.mutedForeground, fontSize = 13.sp) },
+                singleLine = true, shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Mono.card, unfocusedContainerColor = Mono.card,
+                    focusedBorderColor = Iris.amber, unfocusedBorderColor = Mono.border,
+                    focusedTextColor = Mono.foreground, unfocusedTextColor = Mono.foreground,
+                    cursorColor = Iris.amber
+                )
+            )
+        }
+
+        LazyColumn(Modifier.weight(1f, fill = false)) {
             providers.forEach { provider ->
+                val rows = provider.models.filter { m ->
+                    (editMode || visible(provider.slug, m)) &&
+                        (q.isEmpty() || m.lowercase().contains(q) || provider.name.lowercase().contains(q))
+                }
+                if (rows.isEmpty()) return@forEach
                 item(key = "hdr-${provider.slug}") {
                     Text(
-                        provider.name,
-                        color = Mono.mutedForeground,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(20.dp, 12.dp, 20.dp, 4.dp)
+                        provider.name, color = Mono.mutedForeground, fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(20.dp, 12.dp, 20.dp, 4.dp)
                     )
                 }
-                items(provider.models, key = { "${provider.slug}:$it" }) { modelId ->
-                    val isCurrent = modelId == currentModel
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .clickable { vm.switchModel(provider.slug, modelId); onDismiss() }
-                            .padding(20.dp, 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier.size(6.dp)
-                                .background(if (isCurrent) Iris.amber else Color.Transparent, CircleShape)
-                        )
-                        Text(
-                            modelId,
-                            color = if (isCurrent) Mono.foreground else Mono.secondaryForeground,
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(start = 12.dp)
-                        )
+                items(rows, key = { "${provider.slug}:$it" }) { modelId ->
+                    if (editMode) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(20.dp, 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                modelId, color = Mono.foreground, fontSize = 14.sp,
+                                fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f)
+                            )
+                            androidx.compose.material3.Switch(
+                                checked = visible(provider.slug, modelId),
+                                onCheckedChange = { onToggleHidden("${provider.slug}:$modelId") },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(
+                                    checkedThumbColor = Iris.onAmber, checkedTrackColor = Iris.amber,
+                                    uncheckedThumbColor = Mono.mutedForeground, uncheckedTrackColor = Mono.card
+                                )
+                            )
+                        }
+                    } else {
+                        val isCurrent = modelId == currentModel
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { vm.switchModel(provider.slug, modelId); onDismiss() }
+                                .padding(20.dp, 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(6.dp).background(if (isCurrent) Iris.amber else Color.Transparent, CircleShape))
+                            Text(
+                                modelId, color = if (isCurrent) Mono.foreground else Mono.secondaryForeground,
+                                fontSize = 14.sp, fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(start = 12.dp)
+                            )
+                        }
                     }
                 }
             }
         }
+
+        HorizontalDivider(color = Mono.border)
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp).navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ModelSheetButton(
+                if (refreshing) "Refreshing…" else "Refresh models",
+                Modifier.weight(1f)
+            ) {
+                if (!refreshing) {
+                    refreshing = true
+                    vm.loadModelOptions(refresh = true)
+                    scope.launch { kotlinx.coroutines.delay(1500); refreshing = false }
+                }
+            }
+            ModelSheetButton(if (editMode) "Done" else "Edit models", Modifier.weight(1f)) { editMode = !editMode }
+        }
+    }
+}
+
+@Composable
+private fun ModelSheetButton(label: String, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Mono.card)
+            .border(1.dp, Mono.border, RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = Mono.foreground, fontSize = 13.sp)
     }
 }

@@ -11,6 +11,7 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -92,6 +93,11 @@ class GatewayClient(private val baseUrl: String) {
         }.body()
         return reply.dataUrl.ifBlank { null }
     }
+
+    /** Authenticated REST GET returning the raw JSON body (cookie-gated).
+     *  Used for endpoints with no RPC equivalent (profiles). */
+    suspend fun getJsonText(path: String): String =
+        http.get("$base$path").bodyAsText()
 
     /** Send a recorded clip to the Brain's Whisper endpoint; returns the
      *  transcript. The same authenticated cookie the WS uses gates this. */

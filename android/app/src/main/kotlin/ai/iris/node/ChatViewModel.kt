@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 /** A rendered line in the conversation: a chat message OR an agent-activity
@@ -37,7 +38,11 @@ data class ActivityRow(
 
 data class SessionRow(val id: String, val title: String, val preview: String)
 
+data class ProjectRow(val id: String, val label: String, val sessionCount: Int, val sessions: List<SessionRow>)
+
 data class ProviderModels(val slug: String, val name: String, val models: List<String>)
+
+data class ProfileRow(val name: String, val isDefault: Boolean, val description: String)
 
 /**
  * Chat state over the shared GatewayConnection. Protocol mirrors what the
@@ -58,6 +63,16 @@ class ChatViewModel : ViewModel() {
     val errorNotice = MutableStateFlow("")
     val providers = MutableStateFlow<List<ProviderModels>>(emptyList())
 
+    /** Projects (project -> its sessions) and the session ids they claim (so
+     *  the flat session list can drop them, matching the Desktop). */
+    val projects = MutableStateFlow<List<ProjectRow>>(emptyList())
+    val scopedSessionIds = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Profiles are separate agent identities on the gateway host; the active
+     *  one scopes the session list and every session RPC (resume/prompt). */
+    val profiles = MutableStateFlow<List<ProfileRow>>(emptyList())
+    val activeProfile = MutableStateFlow("default")
+
     /** Filenames of images attached to (and shipped with) the next prompt. */
     val pendingAttachments = MutableStateFlow<List<String>>(emptyList())
     /** Transcribed dictation text pushed to the composer draft. */
@@ -72,17 +87,91 @@ class ChatViewModel : ViewModel() {
     }
 
     private suspend fun bootstrap() {
+        loadProfiles()
         refreshSessions()
+        loadProjects()
         if (activeSessionId.value == null) {
             sessions.value.firstOrNull()?.let { selectSession(it.id) }
+        }
+    }
+
+    private fun profileParam(): String? = activeProfile.value.takeIf { it != "default" }
+
+    fun loadProfiles() {
+        viewModelScope.launch {
+            runCatching {
+                val rest = GatewayConnection.rest ?: return@launch
+                val body = GatewayConnection.json.parseToJsonElement(rest.getJsonText("/api/profiles")).jsonObject
+                profiles.value = (body["profiles"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { p ->
+                    val obj = p as? JsonObject ?: return@mapNotNull null
+                    ProfileRow(
+                        name = obj.str("name") ?: return@mapNotNull null,
+                        isDefault = (obj["is_default"] as? JsonPrimitive)?.content == "true",
+                        description = obj.str("description").orEmpty()
+                    )
+                }
+            }.onFailure { /* single-profile gateways may not expose this */ }
+        }
+    }
+
+    fun switchProfile(name: String) {
+        if (name == activeProfile.value) return
+        activeProfile.value = name
+        activeSessionId.value = null
+        transcript.value = emptyList()
+        projects.value = emptyList()
+        refreshSessions()
+        loadProjects()
+    }
+
+    fun loadProjects() {
+        viewModelScope.launch {
+            runCatching {
+                // preview_limit high enough to render a project's sessions inline
+                // without a second project_sessions round-trip.
+                val result = GatewayConnection.request(
+                    "projects.tree", buildJsonObject { put("preview_limit", 25) }, 60_000
+                )
+                val rows = (result["projects"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { p ->
+                    val obj = p as? JsonObject ?: return@mapNotNull null
+                    ProjectRow(
+                        id = obj.str("id") ?: return@mapNotNull null,
+                        label = obj.str("label") ?: "Project",
+                        sessionCount = (obj["sessionCount"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
+                        sessions = (obj["previewSessions"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { s ->
+                            val so = s as? JsonObject ?: return@mapNotNull null
+                            SessionRow(
+                                id = so.str("id") ?: return@mapNotNull null,
+                                title = so.str("title").orEmpty().ifBlank { "Untitled" },
+                                preview = so.str("preview").orEmpty()
+                            )
+                        }
+                    )
+                }.filter { it.sessions.isNotEmpty() }
+                projects.value = rows
+                scopedSessionIds.value = (result["scoped_session_ids"] as? JsonArray ?: JsonArray(emptyList()))
+                    .mapNotNull { (it as? JsonPrimitive)?.content }.toSet()
+            }.onFailure { /* projects are optional; a bare gateway has none */ }
         }
     }
 
     fun refreshSessions() {
         viewModelScope.launch {
             runCatching {
-                val result = GatewayConnection.request("session.list", buildJsonObject { put("limit", 60) })
-                sessions.value = (result["sessions"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { row ->
+                val profile = profileParam()
+                val rowsJson: JsonArray = if (profile == null) {
+                    val result = GatewayConnection.request("session.list", buildJsonObject { put("limit", 60) })
+                    result["sessions"] as? JsonArray ?: JsonArray(emptyList())
+                } else {
+                    // Non-default profile: the RPC list is bound to the gateway's
+                    // own tenant, so read the cross-profile REST list scoped to it.
+                    val rest = GatewayConnection.rest ?: error("not connected")
+                    val body = GatewayConnection.json
+                        .parseToJsonElement(rest.getJsonText("/api/profiles/sessions?profile=$profile&limit=60"))
+                        .jsonObject
+                    body["sessions"] as? JsonArray ?: JsonArray(emptyList())
+                }
+                sessions.value = rowsJson.mapNotNull { row ->
                     val obj = row as? JsonObject ?: return@mapNotNull null
                     SessionRow(
                         id = obj.str("id") ?: return@mapNotNull null,
@@ -106,7 +195,7 @@ class ChatViewModel : ViewModel() {
                 // follow-up RPC must use the live id, not the stored one.
                 val resumed = GatewayConnection.request(
                     "session.resume",
-                    buildJsonObject { put("session_id", id) },
+                    buildJsonObject { put("session_id", id); profileParam()?.let { put("profile", it) } },
                     60_000
                 )
                 val liveId = resumed.str("session_id") ?: id
@@ -130,7 +219,7 @@ class ChatViewModel : ViewModel() {
             runCatching {
                 val result = GatewayConnection.request(
                     "session.create",
-                    buildJsonObject { put("source", "iris-android") },
+                    buildJsonObject { put("source", "iris-android"); profileParam()?.let { put("profile", it) } },
                     60_000
                 )
                 val id = result.str("session_id") ?: result.str("id") ?: return@runCatching
@@ -201,11 +290,12 @@ class ChatViewModel : ViewModel() {
 
     fun consumeDictation() { dictated.value = "" }
 
-    fun loadModelOptions() {
+    fun loadModelOptions(refresh: Boolean = false) {
         viewModelScope.launch {
             runCatching {
                 val result = GatewayConnection.request("model.options", buildJsonObject {
                     activeSessionId.value?.let { put("session_id", it) }
+                    if (refresh) put("refresh", true)
                 }, 60_000)
                 providers.value = (result["providers"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { row ->
                     val obj = row as? JsonObject ?: return@mapNotNull null
@@ -218,6 +308,10 @@ class ChatViewModel : ViewModel() {
                         models = models
                     )
                 }
+                // model.options carries the current {model, provider} -- seed the
+                // pill so it shows the real model even before session.info lands.
+                result.str("model")?.takeIf { it.isNotBlank() }?.let { if (currentModel.value.isBlank()) currentModel.value = it }
+                result.str("provider")?.takeIf { it.isNotBlank() }?.let { if (currentProvider.value.isBlank()) currentProvider.value = it }
             }.onFailure { errorNotice.value = "models: ${it.message}" }
         }
     }

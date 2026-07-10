@@ -29,4 +29,19 @@ class Prefs(context: Context) {
         if (!next.remove(id)) next.add(id)
         prefs.edit().putStringSet("pinned_ids", next).apply()
     }
+
+    // Hidden models (client-side visibility, like the Desktop's Edit Models).
+    // Keys are "slug:model". Empty set = show everything.
+    fun hiddenModels(): Set<String> = prefs.getStringSet("hidden_models", emptySet()) ?: emptySet()
+
+    fun toggleModelHidden(key: String) {
+        val next = hiddenModels().toMutableSet()
+        if (!next.remove(key)) next.add(key)
+        prefs.edit().putStringSet("hidden_models", next).apply()
+    }
+
+    // Active profile (default = the gateway's own tenant).
+    var activeProfile: String
+        get() = prefs.getString("active_profile", "default") ?: "default"
+        set(value) = prefs.edit().putString("active_profile", value).apply()
 }
