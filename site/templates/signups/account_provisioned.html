@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="success-hero" style="padding-bottom: 20px;">
+  <div class="success-glow"></div>
+  <div class="success-content" style="max-width: 600px;">
+    <span class="eyebrow">Active Instance</span>
+    <h1>Your Iris is ready.</h1>
+    <p class="tagline">Your private AI brain is up and running. Use the credentials below to connect your Hermes client app.</p>
+  </div>
+</section>
+
+<div class="main-narrow" style="padding-bottom: 100px; max-width: 600px;">
+  <!-- Connection Details Card -->
+  <div class="card" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px;">
+    <h3 style="margin-top: 0; font-size: 20px; color: var(--fg); border-bottom: 1px solid var(--border); padding-bottom: 12px;">Connection Details</h3>
+    
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-family: var(--font-mono); font-size: 11px; color: var(--dim-fg); text-transform: uppercase; margin-bottom: 6px;">Gateway URL</label>
+      <code style="display: block; font-size: 15px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: left; overflow-x: auto;" id="gateway-url">{{ signup.provision_url }}</code>
+    </div>
+    
+    <div style="margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <label style="display: block; font-family: var(--font-mono); font-size: 11px; color: var(--dim-fg); text-transform: uppercase; margin-bottom: 6px;">Username</label>
+        <code style="display: block; font-size: 15px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: left;" id="gateway-user">{{ signup.provision_username }}</code>
+      </div>
+      <div>
+        <label style="display: block; font-family: var(--font-mono); font-size: 11px; color: var(--dim-fg); text-transform: uppercase; margin-bottom: 6px;">Password</label>
+        <code style="display: block; font-size: 15px; padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: left;" id="gateway-pass">{{ signup.provision_password }}</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subscription Details Card -->
+  <div class="card" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px;">
+    <h3 style="margin-top: 0; font-size: 20px; color: var(--fg); border-bottom: 1px solid var(--border); padding-bottom: 12px;">Subscription Summary</h3>
+    
+    <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
+      <span style="color: var(--muted-fg); font-size: 14px;">Plan Type:</span>
+      <span style="color: var(--fg); font-size: 14.5px; font-weight: 600;">
+        {% if signup.plan == 'byok' %}Bring Your Own Key (BYOK){% else %}Managed Compute{% endif %}
+      </span>
+    </div>
+    <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
+      <span style="color: var(--muted-fg); font-size: 14px;">Monthly Rate:</span>
+      <span style="color: var(--fg); font-size: 14.5px; font-weight: 600;">
+        {% if signup.plan == 'byok' %}$5.00 / mo{% else %}$20.00 / mo{% endif %}
+      </span>
+    </div>
+    <div style="margin-bottom: 16px; display: flex; justify-content: space-between;">
+      <span style="color: var(--muted-fg); font-size: 14px;">Billing Status:</span>
+      <span style="color: #4caf50; font-size: 14px; font-weight: 600; text-transform: uppercase;">Active</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--muted-fg); font-size: 14px;">Subscribed Since:</span>
+      <span style="color: var(--fg); font-size: 14.5px;">{{ signup.created_at|date:"F j, Y" }}</span>
+    </div>
+  </div>
+
+  <!-- BYOK Configuration Card -->
+  {% if signup.plan == 'byok' %}
+  <div class="card" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px;">
+    <h3 style="margin-top: 0; font-size: 20px; color: var(--fg); border-bottom: 1px solid var(--border); padding-bottom: 12px;">Model Provider Configuration</h3>
+    <form action="{% url 'update_config' %}" method="post">
+      {% csrf_token %}
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-family: var(--font-mono); font-size: 11px; color: var(--dim-fg); text-transform: uppercase; margin-bottom: 6px;">Select LLM Provider</label>
+        <select name="provider" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--fg); font-size: 15px; outline: none; cursor: pointer;">
+          {% for val, label in providers %}
+            <option value="{{ val }}" {% if signup.provider == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-family: var(--font-mono); font-size: 11px; color: var(--dim-fg); text-transform: uppercase; margin-bottom: 6px;">Provider API Key</label>
+        <input type="text" name="api_key" value="{{ signup.api_key }}" placeholder="sk-..." required style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--fg); font-size: 15px; margin: 0; font-family: var(--font-mono);">
+      </div>
+      
+      <button type="submit" class="btn btn-small btn-block" style="text-align: center;">Update Configuration</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Bottom Actions -->
+  <div style="display: flex; flex-direction: column; gap: 16px; align-items: center;">
+    <a href="/downloads" class="btn btn-block" style="text-align: center;">Download Apps</a>
+    
+    <div style="display: flex; gap: 12px; width: 100%;">
+      <a href="{% url 'billing_portal' %}" class="btn-outline btn-block" style="text-align: center; flex: 1;">Manage Billing</a>
+      <a href="{% url 'download_data' %}" class="btn-outline btn-block" style="text-align: center; flex: 1;">Download my data</a>
+    </div>
+    
+    <p class="hint center" style="margin-top: 12px;"><a href="{% url 'password_change' %}">Change account password</a> | <a href="{% url 'logout' %}">Log out</a></p>
+  </div>
+</div>
+{% endblock %}

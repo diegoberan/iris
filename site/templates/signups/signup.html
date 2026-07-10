@@ -1,40 +1,45 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero" style="padding-top:60px">
-  <h1 style="font-size:32px">Choose your plan</h1>
-  <p class="tagline">Both plans include hosting on Iris Labs infrastructure and fork maintenance.</p>
+<section class="hero" style="padding:88px 24px 0">
+  <div class="hero-content" style="max-width:480px">
+    <span class="eyebrow">Step 2 of 4</span>
+    <h1 style="font-size:38px">Choose your plan</h1>
+    <p class="tagline" style="margin-bottom:0">Both plans include hosting on Iris Labs infrastructure and fork maintenance.</p>
+  </div>
 </section>
 
-<div class="plans">
-  <div class="plan selected" data-plan="byok" onclick="selectPlan('byok')">
-    <span class="badge">Bring your own key</span>
-    <h3>Hosting only</h3>
-    <div class="price">${{ byok_price }}<span>/mo</span></div>
-    <ul>
-      <li>Your Hermes+Iris instance, hosted and kept up to date</li>
-      <li>Use your own model provider API key (OpenRouter, Anthropic, etc.)</li>
-      <li>No inference cost from us — you control your own usage</li>
-    </ul>
+<div class="main-narrow" style="padding-bottom:100px">
+  <div class="plans" style="margin:56px auto 40px;max-width:760px">
+    <div class="plan selected" data-plan="byok" onclick="selectPlan('byok')">
+      <span class="badge">Bring your own key</span>
+      <h3>Hosting only</h3>
+      <div class="price">${{ byok_price }}<span>/mo</span></div>
+      <ul>
+        <li>Your Hermes + Iris instance, hosted and kept up to date</li>
+        <li>Use your own model provider API key (OpenRouter, Anthropic, etc.)</li>
+        <li>No inference cost from us — you control your own usage</li>
+      </ul>
+    </div>
+    <div class="plan" data-plan="managed" onclick="selectPlan('managed')">
+      <span class="badge blue">Managed compute</span>
+      <h3>Hosting + AMD compute</h3>
+      <div class="price">${{ managed_price }}<span>/mo</span></div>
+      <ul>
+        <li>Everything in Hosting, plus</li>
+        <li>No API key needed — inference runs on AMD-hosted Gemma</li>
+        <li>Access to the shared AMD compute pool</li>
+      </ul>
+    </div>
   </div>
-  <div class="plan" data-plan="managed" onclick="selectPlan('managed')">
-    <span class="badge blue">Managed compute</span>
-    <h3>Hosting + AMD compute</h3>
-    <div class="price">${{ managed_price }}<span>/mo</span></div>
-    <ul>
-      <li>Everything in Hosting, plus</li>
-      <li>No API key needed — inference runs on AMD-hosted Gemma</li>
-      <li>Access to the shared AMD compute pool</li>
-    </ul>
-  </div>
-</div>
 
-<form class="signup-form" id="signup-form">
-  {% csrf_token %}
-  <input type="email" id="email" name="email" placeholder="you@example.com" required>
-  <div id="error" class="error" style="display:none"></div>
-  <button type="submit" class="btn" style="width:100%" id="submit-btn">Continue to payment</button>
-  <p class="hint" style="text-align:center">Sandbox checkout — no real card is charged during evaluation.</p>
-</form>
+  <form class="signup-form" id="signup-form">
+    {% csrf_token %}
+    <input type="email" id="email" name="email" placeholder="you@example.com" required>
+    <div id="error" class="error" style="display:none"></div>
+    <button type="submit" class="btn btn-block" id="submit-btn">Continue to payment</button>
+    <p class="hint center">Sandbox checkout — no real card is charged during evaluation.</p>
+  </form>
+</div>
 
 <script>
 let plan = "byok";

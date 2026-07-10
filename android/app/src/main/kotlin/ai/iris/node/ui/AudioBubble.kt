@@ -165,7 +165,7 @@ fun AudioBubble(mediaPath: String) {
             filename,
             color = Mono.mutedForeground,
             fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = IbmPlexMono,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -201,7 +201,7 @@ fun AudioBubble(mediaPath: String) {
                 else "voice message",
                 color = Mono.secondaryForeground,
                 fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = IbmPlexMono,
                 modifier = Modifier.padding(start = 12.dp)
             )
             Slider(

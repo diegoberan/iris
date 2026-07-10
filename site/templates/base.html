@@ -3,24 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Iris Labs — One Brain. Multiple Bodies.{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/iris.css">
+  <title>{% block title %}Íris — One Brain. Multiple Bodies.{% endblock %}</title>
+  <meta name="description" content="Íris is a persistent personal AI — its own memory, its own infrastructure — provisioned for you and reachable from every device you own.">
+  <link rel="icon" href="/static/img/iris-mark.png?v=9">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/iris.css?v=9">
 </head>
 <body>
   <header class="topbar">
-    <a href="/" class="brand">Íris</a>
+    <a href="/" class="brand">
+      <span style="display: block; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex: none;">
+        <img src="/static/img/iris-mark.png?v=9" alt="Íris" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.17); display: block;">
+      </span>
+      <span class="wordmark">Íris</span>
+    </a>
     <nav>
-      <a href="/#product">Product</a>
+      <a href="/#beliefs">Manifesto</a>
+      <a href="/#features">Features</a>
+      <a href="/#how-it-works">How it Works</a>
+      <a href="/#pricing">Pricing</a>
       <a href="/downloads">Downloads</a>
-      <a href="/signup" class="cta-small">Get started</a>
+      {% if user.is_authenticated %}
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="color: var(--muted-fg); font-size: 14px;">Hi, <strong style="color: var(--fg);">{{ user.username }}</strong></span>
+          <a href="/account/" class="btn btn-small" style="margin: 0;">Account</a>
+          <a href="{% url 'logout' %}" style="color: var(--dim-fg); font-size: 14px;">Logout</a>
+        </div>
+      {% else %}
+        <a href="/signup" class="btn btn-small">Get Started</a>
+      {% endif %}
     </nav>
   </header>
-  <main>
-    {% block content %}{% endblock %}
-  </main>
+
+  {% block content %}{% endblock %}
+
   <footer>
-    <p>Iris Labs — built on <a href="https://github.com/diegoberan/iris" target="_blank" rel="noopener">Hermes</a>.
-    AMD-hosted Gemma compute.</p>
+    <div class="brand">
+      <span style="display: block; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; flex: none;">
+        <img src="/static/img/iris-mark.png?v=9" alt="Íris" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.17); display: block;">
+      </span>
+      <span class="wordmark">Íris</span>
+    </div>
+    <p>Iris Labs — built on <a href="https://github.com/diegoberan/iris" target="_blank" rel="noopener">Hermes</a>. AMD-hosted Gemma compute.</p>
   </footer>
 </body>
 </html>

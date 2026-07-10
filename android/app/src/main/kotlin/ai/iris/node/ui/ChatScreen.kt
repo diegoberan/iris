@@ -67,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -74,6 +75,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
 import ai.iris.node.ActivityRow
 import ai.iris.node.ChatMessage
 import ai.iris.node.ChatViewModel
@@ -81,7 +83,7 @@ import ai.iris.node.NodeService
 import ai.iris.node.R
 import kotlinx.coroutines.launch
 
-private val Sans = FontFamily.SansSerif
+private val Sans = IbmPlexSans
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,19 +221,27 @@ private fun EmptyState(modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(
-            // Logo's black pixels are recolored to the app background (#0E0E0E),
-            // so the square blends into the surface -- no bg change needed.
-            painter = painterResource(R.drawable.iris_logo_t),
-            contentDescription = "Íris",
-            modifier = Modifier.size(180.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.iris_logo_t),
+                contentDescription = "Íris",
+                modifier = Modifier
+                    .size(180.dp)
+                    .graphicsLayer(scaleX = 1.17f, scaleY = 1.17f)
+            )
+        }
         Text(
             "Íris",
-            color = Mono.foreground,
+            color = Iris.amber,
+            fontFamily = Manrope,
             fontSize = 30.sp,
-            fontWeight = FontWeight.Light,
-            letterSpacing = 8.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 3.sp,
             modifier = Modifier.padding(top = 8.dp, start = 8.dp)
         )
         Text(
@@ -622,18 +632,28 @@ private fun DrawerContent(
             Modifier.fillMaxWidth().padding(20.dp, 24.dp, 20.dp, 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(R.drawable.iris_logo_t),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.iris_logo_t),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(30.dp)
+                        .graphicsLayer(scaleX = 1.17f, scaleY = 1.17f)
+                )
+            }
             Text(
                 "Íris",
                 Modifier.padding(start = 10.dp).weight(1f),
-                color = Mono.foreground,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
-                letterSpacing = 2.sp
+                color = Iris.amber,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                letterSpacing = 1.sp
             )
         }
 
@@ -888,7 +908,7 @@ private fun ModelSheet(
                         ) {
                             Text(
                                 modelId, color = Mono.foreground, fontSize = 14.sp,
-                                fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f)
+                                fontFamily = IbmPlexMono, modifier = Modifier.weight(1f)
                             )
                             androidx.compose.material3.Switch(
                                 checked = visible(provider.slug, modelId),
@@ -910,7 +930,7 @@ private fun ModelSheet(
                             Box(Modifier.size(6.dp).background(if (isCurrent) Iris.amber else Color.Transparent, CircleShape))
                             Text(
                                 modelId, color = if (isCurrent) Mono.foreground else Mono.secondaryForeground,
-                                fontSize = 14.sp, fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp, fontFamily = IbmPlexMono,
                                 modifier = Modifier.padding(start = 12.dp)
                             )
                         }

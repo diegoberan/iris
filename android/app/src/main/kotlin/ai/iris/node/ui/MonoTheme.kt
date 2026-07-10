@@ -5,6 +5,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import ai.iris.node.R
+
+val IbmPlexSans = FontFamily(
+    Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+)
+
+val IbmPlexMono = FontFamily(
+    Font(R.font.ibm_plex_mono_regular, FontWeight.Normal)
+)
+
+val Manrope = FontFamily(
+    Font(R.font.manrope, FontWeight.Normal),
+    Font(R.font.manrope, FontWeight.Bold)
+)
+
 
 /**
  * The Hermes Desktop "Mono" theme (dark), verbatim from
@@ -45,7 +65,7 @@ object Iris {
     val amber = Color(0xFFE0A03A)
     val amberDim = Color(0xFF6E5220)
     val amberSoft = Color(0x22E0A03A)
-    val blue = Color(0xFF5A7FB5)
+    val blue = Color(0xFF4C6E82)
     val onAmber = Color(0xFF0E0E0E)
 }
 

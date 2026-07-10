@@ -1,16 +1,24 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Signup
+from .models import Signup, AllowedProvisionEmail
+
+
+@admin.register(AllowedProvisionEmail)
+class AllowedProvisionEmailAdmin(admin.ModelAdmin):
+    list_display = ("email", "note", "created_at")
+    search_fields = ("email", "note")
+    ordering = ("-created_at",)
 
 
 @admin.register(Signup)
 class SignupAdmin(admin.ModelAdmin):
-    list_display = ("email", "plan", "status_badge", "created_at", "masked_key")
+    list_display = ("email", "user", "plan", "status_badge", "created_at", "masked_key")
     list_filter = ("plan", "status")
-    search_fields = ("email", "stripe_customer_id", "stripe_session_id")
+    search_fields = ("email", "stripe_customer_id", "stripe_session_id", "user__username")
     readonly_fields = (
         "email",
+        "user",
         "plan",
         "stripe_customer_id",
         "stripe_session_id",
@@ -19,11 +27,15 @@ class SignupAdmin(admin.ModelAdmin):
     )
     fields = (
         "email",
+        "user",
         "plan",
         "status",
         "reveal_api_key",
         "stripe_customer_id",
         "stripe_session_id",
+        "provision_username",
+        "provision_password",
+        "provision_url",
         "created_at",
         "provisioned_at",
     )
@@ -35,7 +47,9 @@ class SignupAdmin(admin.ModelAdmin):
             Signup.Status.PENDING_PAYMENT: "#888",
             Signup.Status.PENDING_KEY: "#c8963c",
             Signup.Status.READY: "#3c9c6b",
+            Signup.Status.PROVISIONING: "#c86cc9",
             Signup.Status.PROVISIONED: "#4a7fc9",
+            Signup.Status.PROVISION_FAILED: "#a84040",
         }
         return format_html(
             '<span style="color:{}; font-weight:600">{}</span>',
@@ -49,9 +63,6 @@ class SignupAdmin(admin.ModelAdmin):
 
     @admin.display(description="API key")
     def reveal_api_key(self, obj: Signup) -> str:
-        # Shown in full only on the detail page (not the list), since it has
-        # to be legible to copy-paste into the new tenant's .env during
-        # manual provisioning (hermes-admin user create).
         return obj.api_key or "(BYOK key not submitted yet)" if obj.plan == Signup.Plan.BYOK else "(managed compute -- no customer key)"
 
     @admin.action(description="Mark selected signups as provisioned")

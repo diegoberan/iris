@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="success-hero">
+  <div class="success-glow"></div>
+  <div class="success-content">
+    <span class="eyebrow">API Key Required</span>
+    <h1>Payment received.</h1>
+    <p class="tagline">One more step — paste your model provider API key so we can configure your instance.</p>
+    <form class="signup-form" method="post" action="{% url 'submit_api_key' %}" style="margin:0;text-align:left">
+      {% csrf_token %}
+      <input type="password" name="api_key" placeholder="sk-... (OpenRouter, Anthropic, etc.)" required>
+      <button type="submit" class="btn btn-block">Finish setup</button>
+      <p class="hint center">Stored only to configure your hosted instance — never shown in your dashboard once set.</p>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="success-hero">
+  <div class="success-glow"></div>
+  <div class="success-content">
+    <span class="eyebrow">Step 3 of 4</span>
+    <h1>Provisioning your Iris...</h1>
+    <p class="tagline">We're setting up your dedicated instance on our AMD GPU servers. This takes up to 6 minutes — this page will automatically refresh once your credentials are ready.</p>
+    
+    <div style="margin: 40px auto; display: flex; justify-content: center;">
+      <div class="loader"></div>
+    </div>
+    
+    <div class="next-up">
+      <div class="label">Status</div>
+      <div class="item"><span class="icon-done">✓</span><span>Checkout complete</span></div>
+      <div class="item"><span class="icon-next" id="provisioning-arrow">→</span><span id="provisioning-text" style="color: var(--amber)">Instance provisioning in progress...</span></div>
+      <div class="item"><span class="icon-next">→</span><span>Connect from your devices</span></div>
+    </div>
+  </div>
+</section>
+
+<style>
+.loader {
+  border: 4px solid var(--card);
+  border-top: 4px solid var(--amber);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+async function checkStatus() {
+  try {
+    const res = await fetch("{% url 'signup_status' %}");
+    const data = await res.json();
+    if (data.status === "provisioned" || data.status === "provision_failed") {
+      window.location.reload();
+    }
+  } catch (err) {
+    console.error("Polling error:", err);
+  }
+}
+setInterval(checkStatus, 5000);
+</script>
+{% endblock %}

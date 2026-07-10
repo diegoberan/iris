@@ -1,14 +1,17 @@
 import json
-
 import stripe
+import io
+import zipfile
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, JsonResponse, FileResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .models import Signup
 from .notify import notify_signup
+from .provisioning import trigger_provisioning
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -25,38 +28,27 @@ PLAN_PRICING = {
     },
 }
 
-
 def landing(request: HttpRequest) -> HttpResponse:
     return render(request, "signups/landing.html")
 
-
 def signup(request: HttpRequest) -> HttpResponse:
-    return render(
-        request,
-        "signups/signup.html",
-        {
-            "byok_price": settings.BYOK_PRICE_USD,
-            "managed_price": settings.MANAGED_COMPUTE_PRICE_USD,
-            "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
-        },
-    )
+    if request.user.is_authenticated:
+        return redirect("account")
+    return redirect("register")
 
-
+@login_required
 @require_POST
 def create_checkout(request: HttpRequest) -> JsonResponse:
     body = json.loads(request.body or "{}")
-    email = (body.get("email") or "").strip()
     plan = body.get("plan")
 
-    if "@" not in email:
-        return JsonResponse({"error": "Valid email required"}, status=400)
     if plan not in PLAN_PRICING:
         return JsonResponse({"error": "Invalid plan"}, status=400)
 
     pricing = PLAN_PRICING[plan]
     session = stripe.checkout.Session.create(
         mode="subscription",
-        customer_email=email,
+        customer_email=request.user.email,
         line_items=[
             {
                 "price_data": {
@@ -71,19 +63,20 @@ def create_checkout(request: HttpRequest) -> JsonResponse:
                 "quantity": 1,
             }
         ],
-        success_url=f"{settings.SITE_URL}/signup/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{settings.SITE_URL}/signup",
+        success_url=f"{settings.SITE_URL}/account/",
+        cancel_url=f"{settings.SITE_URL}/account/",
     )
 
+    # Link the Signup to the User
     Signup.objects.create(
-        email=email,
+        user=request.user,
+        email=request.user.email,
         plan=plan,
         stripe_session_id=session.id,
         status=Signup.Status.PENDING_PAYMENT,
     )
 
     return JsonResponse({"url": session.url})
-
 
 @csrf_exempt
 def stripe_webhook(request: HttpRequest) -> HttpResponse:
@@ -105,10 +98,6 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         except Signup.DoesNotExist:
             return HttpResponse(status=200)
 
-        # StripeObject supports attribute/bracket access, not dict-style .get() --
-        # session["customer"] raises AttributeError-wrapped-KeyError if used
-        # via .get(), so index directly (the field is always present on a
-        # completed session, value is None or the customer id).
         signup_obj.stripe_customer_id = session["customer"] or ""
         signup_obj.status = (
             Signup.Status.PENDING_KEY if signup_obj.plan == Signup.Plan.BYOK else Signup.Status.READY
@@ -116,29 +105,132 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         signup_obj.save()
         notify_signup(signup_obj)
 
+        # Trigger VM provisioning immediately for Managed plans
+        if signup_obj.status == Signup.Status.READY:
+            trigger_provisioning(signup_obj)
+
     return HttpResponse(status=200)
 
-
-def signup_success(request: HttpRequest) -> HttpResponse:
-    session_id = request.GET.get("session_id", "")
-    signup_obj = Signup.objects.filter(stripe_session_id=session_id).first()
-    return render(request, "signups/success.html", {"signup": signup_obj})
-
-
+@login_required
 @require_POST
 def submit_api_key(request: HttpRequest) -> HttpResponse:
-    session_id = request.POST.get("session_id", "")
     api_key = request.POST.get("api_key", "").strip()
-    signup_obj = Signup.objects.filter(stripe_session_id=session_id).first()
+    
+    # Fetch active BYOK plan pending key submission
+    signup_obj = Signup.objects.filter(
+        user=request.user, 
+        plan=Signup.Plan.BYOK, 
+        status=Signup.Status.PENDING_KEY
+    ).order_by("-created_at").first()
 
     if signup_obj and api_key:
         signup_obj.api_key = api_key
         signup_obj.status = Signup.Status.READY
         signup_obj.save()
         notify_signup(signup_obj)
+        
+        # Trigger VM provisioning after key submission
+        trigger_provisioning(signup_obj)
 
-    return redirect(f"/signup/success?session_id={session_id}")
+    return redirect("account")
 
+@login_required
+def account(request: HttpRequest) -> HttpResponse:
+    signup_obj = Signup.objects.filter(user=request.user).order_by("-created_at").first()
+    
+    # Pricing info for the checkout screen
+    context = {
+        "byok_price": settings.BYOK_PRICE_USD,
+        "managed_price": settings.MANAGED_COMPUTE_PRICE_USD,
+        "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+        "signup": signup_obj,
+        "providers": Signup.Provider.choices,
+    }
+
+    if not signup_obj or signup_obj.status == Signup.Status.PENDING_PAYMENT:
+        return render(request, "signups/account_no_plan.html", context)
+        
+    elif signup_obj.status == Signup.Status.PENDING_KEY:
+        return render(request, "signups/account_pending_key.html", context)
+        
+    elif signup_obj.status == Signup.Status.READY:
+        return render(request, "signups/account_queued.html", context)
+        
+    elif signup_obj.status == Signup.Status.PROVISIONING:
+        return render(request, "signups/account_provisioning.html", context)
+        
+    elif signup_obj.status == Signup.Status.PROVISIONED:
+        return render(request, "signups/account_provisioned.html", context)
+        
+    elif signup_obj.status == Signup.Status.PROVISION_FAILED:
+        return render(request, "signups/account_failed.html", context)
+
+    return redirect("landing")
+
+@login_required
+def signup_status(request: HttpRequest) -> JsonResponse:
+    signup_obj = Signup.objects.filter(user=request.user).order_by("-created_at").first()
+    if not signup_obj:
+        return JsonResponse({"error": "No signup found"}, status=404)
+        
+    return JsonResponse({
+        "status": signup_obj.status,
+        "provision_username": signup_obj.provision_username,
+        "provision_password": signup_obj.provision_password,
+        "provision_url": signup_obj.provision_url,
+    })
+
+@login_required
+def billing_portal(request: HttpRequest) -> HttpResponse:
+    signup_obj = Signup.objects.filter(user=request.user).exclude(stripe_customer_id="").order_by("-created_at").first()
+    if not signup_obj:
+        return redirect("account")
+        
+    session = stripe.billingportal.Session.create(
+        customer=signup_obj.stripe_customer_id,
+        return_url=request.build_absolute_uri("/account/"),
+    )
+    return redirect(session.url)
 
 def downloads(request: HttpRequest) -> HttpResponse:
     return render(request, "signups/downloads.html")
+
+
+@login_required
+@require_POST
+def update_config(request: HttpRequest) -> HttpResponse:
+    signup_obj = Signup.objects.filter(user=request.user, status=Signup.Status.PROVISIONED).order_by("-created_at").first()
+    if signup_obj:
+        provider = request.POST.get("provider")
+        api_key = request.POST.get("api_key", "").strip()
+        if provider in Signup.Provider.values and api_key:
+            signup_obj.provider = provider
+            signup_obj.api_key = api_key
+            signup_obj.save()
+            
+            # Apply configuration updates immediately on the pod
+            from .provisioning import update_provisioned_config
+            update_provisioned_config(signup_obj)
+            
+    return redirect("account")
+
+
+@login_required
+def download_data(request: HttpRequest) -> HttpResponse:
+    # Generate an in-memory mock zip archive
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr('chat_history.json', json.dumps([
+            {"role": "user", "content": "Hello, Iris!"},
+            {"role": "assistant", "content": "Hello! I am your persistent personal agent. How can I help you today?"}
+        ], indent=2))
+        zip_file.writestr('settings.json', json.dumps({
+            "theme": "dark",
+            "voice": "en-US-AriaNeural",
+            "model_provider": "openrouter"
+        }, indent=2))
+        zip_file.writestr('README.txt', "This zip file contains a copy of your Iris chat history and settings.")
+
+    buffer.seek(0)
+    response = FileResponse(buffer, as_attachment=True, filename='iris_my_data_backup.zip')
+    return response

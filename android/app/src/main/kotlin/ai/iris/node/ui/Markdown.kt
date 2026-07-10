@@ -69,7 +69,7 @@ private fun CodeBlock(code: String) {
     Text(
         code,
         color = Mono.foreground,
-        fontFamily = FontFamily.Monospace,
+        fontFamily = IbmPlexMono,
         fontSize = 13.sp,
         lineHeight = 19.sp,
         modifier = Modifier
@@ -160,7 +160,7 @@ private fun inline(raw: String): AnnotatedString {
             if (next == null) { append(text.substring(idx)); break }
             if (next.range.first > idx) append(text.substring(idx, next.range.first))
             when (next) {
-                code -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = Mono.popover, color = Iris.amber)) {
+                code -> withStyle(SpanStyle(fontFamily = IbmPlexMono, background = Mono.popover, color = Iris.amber)) {
                     append(" ${next.groupValues[1]} ")
                 }
                 bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(next.groupValues[1]) }

@@ -1,23 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero" style="padding-top:80px">
+<section class="success-hero">
+  <div class="success-glow"></div>
+
   {% if not signup %}
-    <h1 style="font-size:28px">We couldn't find that checkout session.</h1>
-    <a href="/signup" class="btn">Back to signup</a>
+    <div class="success-content">
+      <h1 style="margin-top:0">We couldn't find that checkout session.</h1>
+      <a href="/signup" class="btn">Back to signup</a>
+    </div>
+
   {% elif signup.plan == "byok" and signup.status == "pending_key" %}
-    <h1 style="font-size:28px">Payment received.</h1>
-    <p class="tagline">One more step — paste your model provider API key so we can configure your instance.</p>
-    <form class="signup-form" method="post" action="/signup/submit-key">
-      {% csrf_token %}
-      <input type="hidden" name="session_id" value="{{ signup.stripe_session_id }}">
-      <input type="password" name="api_key" placeholder="sk-... (OpenRouter, Anthropic, etc.)" required>
-      <button type="submit" class="btn" style="width:100%">Finish setup</button>
-      <p class="hint">Stored only to configure your hosted instance — never shown in your dashboard once set.</p>
-    </form>
+    <div class="success-content">
+      <span class="eyebrow">Step 3 of 4</span>
+      <h1>Payment received.</h1>
+      <p class="tagline">One more step — paste your model provider API key so we can configure your instance.</p>
+      <form class="signup-form" method="post" action="/signup/submit-key" style="margin:0;text-align:left">
+        {% csrf_token %}
+        <input type="hidden" name="session_id" value="{{ signup.stripe_session_id }}">
+        <input type="password" name="api_key" placeholder="sk-... (OpenRouter, Anthropic, etc.)" required>
+        <button type="submit" class="btn btn-block">Finish setup</button>
+        <p class="hint">Stored only to configure your hosted instance — never shown in your dashboard once set.</p>
+      </form>
+    </div>
+
   {% else %}
-    <h1 style="font-size:28px">You're all set.</h1>
-    <p class="tagline">We're provisioning your Iris instance now — you'll get access details by email shortly.</p>
-    <a href="/downloads" class="btn">Download the apps</a>
+    <div class="success-content">
+      <span class="eyebrow">Step 3 of 4</span>
+      <h1>You're all set.</h1>
+      <p class="tagline">We're provisioning your Iris instance now — you'll get your instance URL and login by email shortly.</p>
+      <a href="/downloads" class="btn" style="margin-bottom:40px">Download the apps</a>
+      <div class="next-up">
+        <div class="label">Next up</div>
+        <div class="item"><span class="icon-done">✓</span><span>Checkout complete</span></div>
+        <div class="item"><span class="icon-next">→</span><span>Instance provisioning — access details arrive by email</span></div>
+        <div class="item"><span class="icon-next">→</span><span>Download Hermes Desktop or Android and connect</span></div>
+      </div>
+    </div>
   {% endif %}
 </section>
 {% endblock %}

@@ -405,6 +405,6 @@ private fun AboutScreen(onBack: () -> Unit) {
 private fun InfoLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth()) {
         Text(label, color = Mono.mutedForeground, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(value, color = Mono.foreground, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+        Text(value, color = Mono.foreground, fontSize = 13.sp, fontFamily = IbmPlexMono)
     }
 }

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="success-hero">
+  <div class="success-glow"></div>
+  <div class="success-content">
+    <span class="eyebrow" style="color: var(--destructive);">Error</span>
+    <h1>Provisioning failed.</h1>
+    <p class="tagline">Something went wrong while setting up your Iris instance. Our team has been notified. Please try again or contact support for help.</p>
+    <a href="mailto:support@dberan.dev" class="btn" style="margin-bottom:40px">Contact Support</a>
+    <p class="hint center"><a href="{% url 'logout' %}">Log out</a></p>
+  </div>
+</section>
+{% endblock %}
