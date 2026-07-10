@@ -52,5 +52,10 @@ without `provider: "basic"` and 422'd (surfaced as "login rejected").
 **Agent-driven run (same night):** with the `iris-body` skill loaded, the user
 asked the production agent for a phone notification and for their current
 location in a live session — both actions completed end-to-end on the physical
-device. Gate 2 closed green. Remaining: footage capture for the video
-(notification arriving + Watch vibration mirror).
+device. Gate 2 closed green.
+
+Remaining for the video: footage capture. Notification scene can run on TWO
+phones at once (the act request is broadcast to every Node announcing the
+capability — install the same APK on the second phone), with the Watch
+mirroring from its paired phone; the Watch also appears as its own body via
+the native GTD app, independent of notification mirroring.
