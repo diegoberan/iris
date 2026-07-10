@@ -215,16 +215,16 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
 @Composable
 private fun EmptyState(modifier: Modifier) {
     Column(
-        modifier,
+        // Pure-black backdrop so the full-detail logo (black-background
+        // artwork) sits seamlessly -- no square edge on the empty state.
+        modifier.background(Color.Black),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            // Transparent-pupil logo: the black center/edges read as the app
-            // background, so no dark disc floating on the near-black surface.
             painter = painterResource(R.drawable.iris_logo_t),
             contentDescription = "Íris",
-            modifier = Modifier.size(150.dp)
+            modifier = Modifier.size(180.dp)
         )
         Text(
             "Íris",
