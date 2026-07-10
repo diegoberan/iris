@@ -126,6 +126,9 @@
         {% if not signup or signup.status == 'pending_payment' %}
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div style="font-size: 40px; margin-bottom: 16px;">🖥️</div>
+            <div style="display: inline-block; background: rgba(255, 255, 255, 0.06); color: var(--muted-fg); font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;">
+              ⚪ Not Subscribed
+            </div>
             <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">No Active Instance</h3>
             <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">You don't have an active instance yet. Subscribe to a plan under the <strong>Subscription</strong> tab to deploy your server.</p>
             <button class="btn btn-small" onclick="switchTab('subscription')">Choose a Plan</button>
@@ -133,6 +136,9 @@
         {% elif signup.status == 'pending_key' %}
           <div class="dash-card" style="text-align: center; padding: 48px 32px;">
             <div style="font-size: 40px; margin-bottom: 16px;">🔑</div>
+            <div style="display: inline-block; background: var(--blue-soft); color: var(--blue); font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;">
+              🔵 Waiting for API Key
+            </div>
             <h3 style="border: none; padding: 0; margin-bottom: 12px; text-align: center;">API Key Required</h3>
             <p style="color: var(--muted-fg); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">Your subscription is active, but we need your provider API credentials before we can configure and deploy your server.</p>
             <button class="btn btn-small" onclick="switchTab('keys')">Configure API Key</button>
