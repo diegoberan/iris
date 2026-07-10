@@ -41,7 +41,10 @@ class GatewayClient(private val baseUrl: String) {
     val http = HttpClient(CIO) {
         install(HttpCookies)
         install(WebSockets)
-        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        // encodeDefaults: kotlinx.serialization omits default-valued fields
+        // otherwise, and the login endpoint REQUIRES provider="basic" -- its
+        // absence 422s, which the app can only surface as "login rejected".
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
     }
 
     private val base = baseUrl.trimEnd('/')

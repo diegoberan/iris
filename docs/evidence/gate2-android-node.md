@@ -33,6 +33,21 @@ notification (auto-mirrors to a paired Watch), `location.current` serves a GPS
 fix via `LocationManager.getCurrentLocation`. `assembleDebug` builds clean on
 the same toolchain as the (production-validated) Wear app.
 
-Pending live run: install on the physical phone, connect to the production
-gateway, re-run steps 4–5 against the real device, capture footage
-(notification arriving + Watch vibration mirror).
+## Live run on the physical device (2026-07-09, same night)
+
+Installed on a Galaxy S20 FE (SM-G780G) over adb; the app authenticated against
+the production gateway at `https://diego.dberan.dev` (through Cloudflare) and
+announced. Same two calls, now answered by real hardware:
+
+- `POST /iris/notify` → `200 {"delivered": true, "device": "android"}` — the
+  notification posted on the phone.
+- `GET /iris/location` → `200 {"latitude": -22.82…, "longitude": -47.08…,
+  "accuracy": 30.8, "device": "android"}` — a live GPS fix from the phone,
+  served to the Brain on demand.
+
+One field bug found and fixed on the way: kotlinx.serialization omits
+default-valued fields unless `encodeDefaults = true`, so the login body shipped
+without `provider: "basic"` and 422'd (surfaced as "login rejected").
+
+Remaining for the demo: agent-driven run through the `iris-body` skill and
+footage capture (notification arriving + Watch vibration mirror).
