@@ -16,23 +16,61 @@ WebSocket transport and **announces** its capabilities. The Brain maintains a li
 
 ### 2.1 Announce — `hermes.capabilities.announce`
 
-Sent by a Node after connecting (and again on any capability change). Payload is
-**namespaced per capability**:
+Sent by a Node after connecting (and again on any capability change). Payload carries a
+static `device` field identifying the Node type, plus capability blocks **namespaced per
+capability**:
 
 ```jsonc
 {
-  "speech": { "available": true, "providers": ["dot-tts"] },
-  "llm.chat": { "available": true, "providers": ["gemma-local"], "hardware": "gfx1200" },
-  "notification.send": { "available": true }
+  "device": "desktop",
+  "speech": { "available": true, "localUrl": "http://127.0.0.1:8123", "voices": ["dot"] },
+  "llm": { "available": true, "localUrl": "http://127.0.0.1:1234/v1", "model": "google/gemma-4-12b-qat" }
 }
 ```
 
+The Android Node (`android/` in this repo) announces the same way:
+
+```jsonc
+{
+  "device": "android",
+  "notification": { "available": true },
+  "location": { "available": true }
+}
+```
+
+`device` disambiguates *who* announced a capability once more than one Node type can offer
+the same one. Kept as a flat string for now (`"desktop"`, `"android"`, future `"watch"`);
+a richer per-Node identity (stable id, display name) is a later revision if the Registry
+needs to show/target individual Nodes rather than just capability types.
+
 *(Shape of the existing production implementation; field-level schema TBD in §5.)*
 
-### 2.2 Act — request/response (TBD)
+### 2.2 Act — request/response
 
-Generalization of the existing `speech.synthesize.request` desktop-session flow:
-Brain → Node action request, Node → Brain result. One pattern for all capabilities.
+Generalization of the `speech.synthesize.request` desktop-session flow — Brain → Node
+action request, Node → Brain result over the Node's own gateway WebSocket. One pattern,
+four capabilities in production: `speech.synthesize`, `llm.generate`,
+`notification.send`, `location.current`.
+
+Request (Brain → Node, as a gateway event):
+
+```jsonc
+{ "type": "notification.send.request",
+  "payload": { "title": "…", "body": "…", "request_id": "ab12cd34" } }
+```
+
+Response (Node → Brain, as an RPC). Device capabilities answer on the shared
+`device.action.response` method; correlation is the `request_id`:
+
+```jsonc
+{ "method": "device.action.response",
+  "params": { "request_id": "ab12cd34", "success": true, "device": "android" } }
+```
+
+The request is broadcast to every Node whose announce carries the capability; the first
+response for a `request_id` wins (mirrors the speech MVP). Pull capabilities
+(`location.current`) return their result fields (`latitude`, `longitude`, `accuracy`)
+in the same response envelope.
 
 ### 2.3 Health / presence
 
