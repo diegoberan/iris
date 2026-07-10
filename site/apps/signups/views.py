@@ -105,7 +105,11 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         except Signup.DoesNotExist:
             return HttpResponse(status=200)
 
-        signup_obj.stripe_customer_id = session.get("customer") or ""
+        # StripeObject supports attribute/bracket access, not dict-style .get() --
+        # session["customer"] raises AttributeError-wrapped-KeyError if used
+        # via .get(), so index directly (the field is always present on a
+        # completed session, value is None or the customer id).
+        signup_obj.stripe_customer_id = session["customer"] or ""
         signup_obj.status = (
             Signup.Status.PENDING_KEY if signup_obj.plan == Signup.Plan.BYOK else Signup.Status.READY
         )
