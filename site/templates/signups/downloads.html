@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero" style="padding-top:60px">
+  <h1 style="font-size:32px">Download Íris</h1>
+  <p class="tagline">Desktop, Android, and Wear OS — same Brain, three bodies.</p>
+</section>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="download-card">
+    <div>
+      <div class="platform">Desktop</div>
+      <div class="note">Windows · macOS · Linux</div>
+    </div>
+    <a href="#" class="btn-outline">Download</a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="download-card">
+    <div>
+      <div class="platform">Android</div>
+      <div class="note">.apk — sideload (not on Play Store yet)</div>
+    </div>
+    <a href="#" class="btn-outline">Download .apk</a>
+  </div>
+  <p class="hint" style="margin-top:16px">
+    After downloading: Settings → Apps → Special access → Install unknown apps →
+    allow your browser, then open the file.
+  </p>
+</div>
+
+<div class="card">
+  <div class="download-card">
+    <div>
+      <div class="platform">Wear OS</div>
+      <div class="note">.apk — install via ADB over Wi-Fi</div>
+    </div>
+    <a href="#" class="btn-outline">Download .apk</a>
+  </div>
+  <p class="hint" style="margin-top:16px">
+    Requires ADB. Pair the watch to your phone, enable Developer Options + Wireless
+    debugging on the watch, then: <code>adb connect &lt;watch-ip&gt;:&lt;port&gt;</code> and
+    <code>adb install iris-wear.apk</code>. See the demo video for the watch running live —
+    this path is advanced and optional.
+  </p>
+</div>
+{% endblock %}

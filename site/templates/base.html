@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Iris Labs — One Brain. Multiple Bodies.{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/iris.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand">Íris</a>
+    <nav>
+      <a href="/#product">Product</a>
+      <a href="/downloads">Downloads</a>
+      <a href="/signup" class="cta-small">Get started</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <p>Iris Labs — built on <a href="https://github.com/diegoberan/iris" target="_blank" rel="noopener">Hermes</a>.
+    AMD-hosted Gemma compute.</p>
+  </footer>
+</body>
+</html>
