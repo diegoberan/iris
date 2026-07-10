@@ -170,7 +170,7 @@ class NodeService : Service() {
 
     private fun postAlert(title: String, body: String) {
         val notification = NotificationCompat.Builder(this, ALERTS_CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_sil)
+            .setSmallIcon(R.drawable.ic_stat_iris)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -222,7 +222,7 @@ class NodeService : Service() {
 
     private fun serviceNotification(text: String): Notification =
         NotificationCompat.Builder(this, SERVICE_CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_sil)
+            .setSmallIcon(R.drawable.ic_stat_iris)
             .setContentTitle("Iris Node")
             .setContentText(text)
             .setOngoing(true)
