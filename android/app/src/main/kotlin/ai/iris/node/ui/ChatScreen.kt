@@ -643,7 +643,18 @@ private fun DrawerContent(
             Modifier.fillMaxWidth().clickable { showProfiles = true }.padding(20.dp, 4.dp, 16.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Rounded.AccountCircle, null, tint = Iris.blue, modifier = Modifier.size(22.dp))
+            // Monogram avatar (first letter) -- reads as an account chip, no
+            // stock person glyph. Amber ring, blue fill for a pointed accent.
+            Box(
+                Modifier.size(26.dp).background(Iris.blue.copy(alpha = 0.18f), CircleShape)
+                    .border(1.dp, Iris.amber, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    activeProfile.firstOrNull()?.uppercase() ?: "?",
+                    color = Iris.amber, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+            }
             Column(Modifier.padding(start = 12.dp).weight(1f)) {
                 Text("Profile", color = Mono.mutedForeground, fontSize = 11.sp)
                 Text(activeProfile, color = Mono.foreground, fontSize = 14.sp,
