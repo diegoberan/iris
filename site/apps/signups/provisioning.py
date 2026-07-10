@@ -43,19 +43,32 @@ def _run_provisioning(signup_id: int) -> None:
         with open(os.path.join(target_dir, "port"), "w") as f:
             f.write(str(port))
             
-        # Write BYOK API key if needed
-        if signup.plan == Signup.Plan.BYOK:
-            env_path = os.path.join(target_dir, "env.d")
-            mode = "a" if os.path.exists(env_path) else "w"
-            provider_vars = {
-                Signup.Provider.OPENROUTER: "OPENROUTER_API_KEY",
-                Signup.Provider.OPENAI: "OPENAI_API_KEY",
-                Signup.Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
-                Signup.Provider.FIREWORKS: "FIREWORKS_API_KEY",
-                Signup.Provider.GEMINI: "GEMINI_API_KEY",
-            }
-            var_name = provider_vars.get(signup.provider, "OPENROUTER_API_KEY")
-            with open(env_path, mode) as f:
+        # Determine credentials
+        username = signup.provision_username or signup.user.username
+        password = signup.provision_password
+        if not password:
+            import secrets
+            password = secrets.token_hex(6)
+            
+        signup.provision_username = username
+        signup.provision_password = password
+        signup.save()
+
+        # Write credentials and BYOK API key if needed
+        env_path = os.path.join(target_dir, "env.d")
+        mode = "a" if os.path.exists(env_path) else "w"
+        with open(env_path, mode) as f:
+            f.write(f"\nHERMES_DASHBOARD_BASIC_AUTH_USERNAME={username}\n")
+            f.write(f"\nHERMES_DASHBOARD_BASIC_AUTH_PASSWORD={password}\n")
+            if signup.plan == Signup.Plan.BYOK:
+                provider_vars = {
+                    Signup.Provider.OPENROUTER: "OPENROUTER_API_KEY",
+                    Signup.Provider.OPENAI: "OPENAI_API_KEY",
+                    Signup.Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
+                    Signup.Provider.FIREWORKS: "FIREWORKS_API_KEY",
+                    Signup.Provider.GEMINI: "GEMINI_API_KEY",
+                }
+                var_name = provider_vars.get(signup.provider, "OPENROUTER_API_KEY")
                 f.write(f"\n{var_name}={signup.api_key}\n")
         
         # Run provisioning script
@@ -70,19 +83,13 @@ def _run_provisioning(signup_id: int) -> None:
             check=True
         )
         
-        # Read credentials
-        username = f"signup_{signup.id}"
-        password_file = os.path.join(SECRETS_DIR, f"{username}-dashboard-password")
-        
-        if not os.path.exists(password_file):
-            raise FileNotFoundError(f"Password file not found at {password_file}")
-            
-        with open(password_file, "r") as f:
-            password = f.read().strip()
+        # Overwrite the generated password secret file to match custom credentials
+        password_file = os.path.join(SECRETS_DIR, f"signup_{signup.id}-dashboard-password")
+        with open(password_file, "w") as f:
+            f.write(password)
+        os.chmod(password_file, 0o600)
             
         # Update signup object
-        signup.provision_username = username
-        signup.provision_password = password
         signup.provision_url = f"http://129.212.190.147:{port}/"
         signup.status = Signup.Status.PROVISIONED
         signup.provisioned_at = timezone.now()

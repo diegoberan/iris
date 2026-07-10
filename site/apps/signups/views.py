@@ -74,6 +74,8 @@ def create_checkout(request: HttpRequest) -> JsonResponse:
         plan=plan,
         stripe_session_id=session.id,
         status=Signup.Status.PENDING_PAYMENT,
+        provision_username=request.user.username,
+        provision_password=request.session.get("user_plain_password", "039148b140e3") # fallback
     )
 
     return JsonResponse({"url": session.url})
