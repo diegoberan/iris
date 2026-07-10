@@ -1,17 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="success-hero">
+<section class="success-hero" style="padding-bottom: 20px;">
   <div class="success-glow"></div>
-  <div class="success-content">
-    <span class="eyebrow">API Key Required</span>
-    <h1>Payment received.</h1>
-    <p class="tagline">One more step — paste your model provider API key so we can configure your instance.</p>
-    <form class="signup-form" method="post" action="{% url 'submit_api_key' %}" style="margin:0;text-align:left">
-      {% csrf_token %}
-      <input type="password" name="api_key" placeholder="sk-... (OpenRouter, Anthropic, etc.)" required>
-      <button type="submit" class="btn btn-block">Finish setup</button>
-      <p class="hint center">Stored only to configure your hosted instance — never shown in your dashboard once set.</p>
-    </form>
+  <div class="success-content" style="max-width: 600px;">
+    <span class="eyebrow">Step 2 of 4</span>
+    <h1>Payment Received.</h1>
+    <p class="tagline">One more step — select your LLM provider and paste your API key so we can configure your instance.</p>
   </div>
 </section>
+
+<div class="main-narrow" style="padding-bottom: 100px; max-width: 500px;">
+  <div class="dash-card">
+    <h3>Configure Provider</h3>
+    <form method="post" action="{% url 'submit_api_key' %}">
+      {% csrf_token %}
+      
+      <div style="margin-bottom: 20px;">
+        <label class="dash-label">Select LLM Provider</label>
+        <div class="dash-select-wrapper">
+          <select name="provider" class="dash-select" required>
+            {% for val, label in providers %}
+              <option value="{{ val }}" {% if val == 'openrouter' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 24px;">
+        <label class="dash-label">Provider API Key</label>
+        <input type="password" name="api_key" placeholder="sk-..." required class="dash-input">
+      </div>
+      
+      <button type="submit" class="btn btn-block" style="text-align: center;">Finish Setup</button>
+      <p class="hint center" style="margin-top: 14px;">Stored only to configure your hosted instance — you can change it later.</p>
+    </form>
+  </div>
+</div>
+{% block extra_js %}
+{% endblock %}
 {% endblock %}

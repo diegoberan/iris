@@ -115,6 +115,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 @require_POST
 def submit_api_key(request: HttpRequest) -> HttpResponse:
     api_key = request.POST.get("api_key", "").strip()
+    provider = request.POST.get("provider", "").strip()
     
     # Fetch active BYOK plan pending key submission
     signup_obj = Signup.objects.filter(
@@ -123,8 +124,9 @@ def submit_api_key(request: HttpRequest) -> HttpResponse:
         status=Signup.Status.PENDING_KEY
     ).order_by("-created_at").first()
 
-    if signup_obj and api_key:
+    if signup_obj and api_key and provider in Signup.Provider.values:
         signup_obj.api_key = api_key
+        signup_obj.provider = provider
         signup_obj.status = Signup.Status.READY
         signup_obj.save()
         notify_signup(signup_obj)
@@ -203,9 +205,11 @@ def update_config(request: HttpRequest) -> HttpResponse:
     if signup_obj:
         provider = request.POST.get("provider")
         api_key = request.POST.get("api_key", "").strip()
-        if provider in Signup.Provider.values and api_key:
+        if provider in Signup.Provider.values:
             signup_obj.provider = provider
-            signup_obj.api_key = api_key
+            # Save key only if user provided a new, unmasked key
+            if api_key and not api_key.startswith("..."):
+                signup_obj.api_key = api_key
             signup_obj.save()
             
             # Apply configuration updates immediately on the pod
@@ -234,3 +238,20 @@ def download_data(request: HttpRequest) -> HttpResponse:
     buffer.seek(0)
     response = FileResponse(buffer, as_attachment=True, filename='iris_my_data_backup.zip')
     return response
+
+
+@login_required
+def retry_provisioning(request: HttpRequest) -> HttpResponse:
+    signup_obj = Signup.objects.filter(user=request.user, status=Signup.Status.PROVISION_FAILED).order_by("-created_at").first()
+    if signup_obj:
+        if signup_obj.plan == Signup.Plan.BYOK:
+            signup_obj.status = Signup.Status.PENDING_KEY
+            signup_obj.save()
+        else:
+            signup_obj.status = Signup.Status.READY
+            signup_obj.save()
+            from .provisioning import trigger_provisioning
+            trigger_provisioning(signup_obj)
+            
+    return redirect("account")
+

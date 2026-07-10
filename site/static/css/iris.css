@@ -263,6 +263,132 @@ input::placeholder { color: #666; }
 .final-cta h2 { font-weight: 300; font-size: 44px; color: var(--fg); margin: 0 0 16px; letter-spacing: -0.3px; }
 .final-cta p { font-size: 17px; color: var(--muted-fg); margin: 0 0 36px; }
 
+/* ---------- Dashboard Card & Utilities ---------- */
+
+.dash-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+}
+
+.dash-card h3 {
+  margin-top: 0;
+  font-size: 20px;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.dash-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.dash-row:last-child {
+  margin-bottom: 0;
+}
+
+.dash-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dim-fg);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.dash-copy-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.dash-copy-container code {
+  flex: 1;
+  text-align: left;
+  padding: 12px 60px 12px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  background: var(--bg);
+  display: block;
+}
+
+.dash-copy-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim-fg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+
+.dash-copy-btn:hover {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+.dash-copy-btn.copied {
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+select.dash-select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--fg);
+  font-size: 15px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+select.dash-select:focus {
+  border-color: var(--amber);
+}
+
+.dash-select-wrapper {
+  position: relative;
+}
+.dash-select-wrapper::after {
+  content: '▼';
+  font-size: 10px;
+  color: var(--dim-fg);
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+input.dash-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--fg);
+  font-size: 15px;
+  margin: 0;
+  font-family: var(--font-mono);
+}
+input.dash-input:focus {
+  border-color: var(--amber);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

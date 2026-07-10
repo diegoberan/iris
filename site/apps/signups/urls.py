@@ -11,6 +11,7 @@ urlpatterns = [
     path("account/billing", views.billing_portal, name="billing_portal"),
     path("account/update-config", views.update_config, name="update_config"),
     path("account/download-data", views.download_data, name="download_data"),
+    path("account/retry-provision", views.retry_provisioning, name="retry_provisioning"),
     path("downloads", views.downloads, name="downloads"),
     path("webhooks/stripe", views.stripe_webhook, name="stripe_webhook"),
 ]
