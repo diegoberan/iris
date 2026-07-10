@@ -34,6 +34,21 @@ object Mono {
     val userBubbleBorder = Color(0xFF363636)
 }
 
+/**
+ * Iris brand accent, sampled from the app logo (a neural iris): warm amber
+ * glowing from the pupil, cool steel-blue at the rim. Used sparingly over the
+ * Mono grayscale base so the app reads as "Iris" without abandoning the
+ * Desktop's Mono theme -- send button, live-stream cursor, active session bar,
+ * running spinner, audio scrubber.
+ */
+object Iris {
+    val amber = Color(0xFFE0A03A)
+    val amberDim = Color(0xFF6E5220)
+    val amberSoft = Color(0x22E0A03A)
+    val blue = Color(0xFF5A7FB5)
+    val onAmber = Color(0xFF0E0E0E)
+}
+
 private val MonoDarkScheme = darkColorScheme(
     background = Mono.background,
     onBackground = Mono.foreground,

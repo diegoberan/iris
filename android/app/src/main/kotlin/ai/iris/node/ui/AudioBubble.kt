@@ -5,10 +5,14 @@ import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -23,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.iris.node.GatewayConnection
@@ -43,8 +49,7 @@ data class PlaybackState(
     val durationMs: Int = 0,
 )
 
-/** One shared player: starting a new voice message stops the previous one.
- *  Exposes observable position/duration so bubbles can draw a live timeline. */
+/** One shared player: starting a new voice message stops the previous one. */
 private object AudioPlayback {
     val state = MutableStateFlow(PlaybackState())
 
@@ -71,13 +76,9 @@ private object AudioPlayback {
     fun toggle() {
         val mp = player ?: return
         if (mp.isPlaying) {
-            mp.pause()
-            state.value = state.value.copy(playing = false)
-            stopTicker()
+            mp.pause(); state.value = state.value.copy(playing = false); stopTicker()
         } else {
-            mp.start()
-            state.value = state.value.copy(playing = true)
-            startTicker()
+            mp.start(); state.value = state.value.copy(playing = true); startTicker()
         }
     }
 
@@ -92,18 +93,13 @@ private object AudioPlayback {
         stopTicker()
         ticker = scope.launch {
             while (true) {
-                player?.let { mp ->
-                    runCatching { state.value = state.value.copy(positionMs = mp.currentPosition) }
-                }
-                delay(250)
+                player?.let { mp -> runCatching { state.value = state.value.copy(positionMs = mp.currentPosition) } }
+                delay(200)
             }
         }
     }
 
-    private fun stopTicker() {
-        ticker?.cancel()
-        ticker = null
-    }
+    private fun stopTicker() { ticker?.cancel(); ticker = null }
 
     private fun release() {
         stopTicker()
@@ -114,11 +110,16 @@ private object AudioPlayback {
 }
 
 private fun formatMs(ms: Int): String {
-    val totalSeconds = ms / 1000
-    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+    val s = ms / 1000
+    return "%d:%02d".format(s / 60, s % 60)
 }
 
-/** Voice-reply bubble with a live timeline: play/pause, seek, position. */
+/**
+ * Voice-reply player card, matching the Desktop audio bubble: a filename
+ * header, then a circular play/pause, elapsed/total time and a thin seekable
+ * progress bar. TTS output was synthesized on the Desktop body's GPU and plays
+ * here on the phone body -- capability composition across Nodes.
+ */
 @Composable
 fun AudioBubble(mediaPath: String) {
     val context = LocalContext.current
@@ -128,67 +129,78 @@ fun AudioBubble(mediaPath: String) {
     var failed by remember(mediaPath) { mutableStateOf(false) }
 
     val isMine = playback.key == mediaPath
-    val fraction =
-        if (isMine && playback.durationMs > 0) playback.positionMs.toFloat() / playback.durationMs else 0f
+    val playing = isMine && playback.playing
+    val fraction = if (isMine && playback.durationMs > 0) playback.positionMs.toFloat() / playback.durationMs else 0f
+    val filename = mediaPath.substringAfterLast('/')
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .background(Mono.card, RoundedCornerShape(20.dp))
-            .border(1.dp, Mono.border, RoundedCornerShape(20.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+    fun onPlayTap() {
+        when {
+            loading -> {}
+            isMine -> AudioPlayback.toggle()
+            else -> {
+                loading = true; failed = false
+                scope.launch {
+                    val ok = fetchAndPlay(mediaPath, context.cacheDir)
+                    loading = false; failed = !ok
+                }
+            }
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxWidth(0.92f)
+            .background(Mono.card, RoundedCornerShape(14.dp))
+            .border(1.dp, Mono.border, RoundedCornerShape(14.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            when {
-                loading -> "…"
-                failed -> "!"
-                isMine && playback.playing -> "⏸"
-                else -> "▶"
-            },
-            color = if (failed) Mono.destructive else Mono.foreground,
-            fontSize = 18.sp,
-            modifier = Modifier
-                .clickable(enabled = !loading) {
-                    when {
-                        isMine -> AudioPlayback.toggle()
-                        else -> {
-                            loading = true
-                            failed = false
-                            scope.launch {
-                                val ok = fetchAndPlay(mediaPath, context.cacheDir)
-                                loading = false
-                                failed = !ok
-                            }
-                        }
-                    }
-                }
-                .padding(6.dp)
-        )
-
-        Slider(
-            value = fraction.coerceIn(0f, 1f),
-            onValueChange = { if (isMine) AudioPlayback.seekTo(it) },
-            enabled = isMine,
-            colors = SliderDefaults.colors(
-                thumbColor = Mono.foreground,
-                activeTrackColor = Mono.foreground,
-                inactiveTrackColor = Mono.secondary,
-                disabledActiveTrackColor = Mono.secondary,
-                disabledInactiveTrackColor = Mono.secondary,
-                disabledThumbColor = Mono.mutedForeground
-            ),
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-        )
-
-        Text(
-            if (failed) "unavailable"
-            else if (isMine) "${formatMs(playback.positionMs)} / ${formatMs(playback.durationMs)}"
-            else "voice",
+            filename,
             color = Mono.mutedForeground,
-            fontSize = 11.sp,
-            modifier = Modifier.width(72.dp)
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .background(if (failed) Mono.muted else Iris.amber, CircleShape)
+                    .clickable { onPlayTap() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    when { loading -> "…"; failed -> "!"; playing -> "⏸"; else -> "▶" },
+                    color = if (failed) Mono.destructive else Iris.onAmber,
+                    fontSize = 16.sp
+                )
+            }
+            Text(
+                if (failed) "unavailable"
+                else if (isMine) "${formatMs(playback.positionMs)} / ${formatMs(playback.durationMs)}"
+                else "voice message",
+                color = Mono.secondaryForeground,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+            Slider(
+                value = fraction.coerceIn(0f, 1f),
+                onValueChange = { if (isMine) AudioPlayback.seekTo(it) },
+                enabled = isMine,
+                colors = SliderDefaults.colors(
+                    thumbColor = Iris.amber,
+                    activeTrackColor = Iris.amber,
+                    inactiveTrackColor = Mono.secondary,
+                    disabledActiveTrackColor = Mono.secondary,
+                    disabledInactiveTrackColor = Mono.secondary,
+                    disabledThumbColor = Mono.mutedForeground
+                ),
+                modifier = Modifier.weight(1f).padding(start = 12.dp)
+            )
+        }
     }
 }
 

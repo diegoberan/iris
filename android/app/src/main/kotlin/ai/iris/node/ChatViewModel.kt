@@ -8,10 +8,13 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+
+/** A rendered line in the conversation: a chat message OR an agent-activity
+ *  row (tool call / thinking), interleaved in the order they streamed. */
+sealed interface TranscriptItem {
+    val key: String
+}
 
 data class ChatMessage(
     val role: String,
@@ -20,7 +23,17 @@ data class ChatMessage(
     /** Gateway-local path of an attached audio file (TTS voice reply),
      *  extracted from the message's MEDIA: line. Fetched via /api/media. */
     val mediaPath: String? = null,
-)
+    override val key: String = "msg-${System.nanoTime()}",
+) : TranscriptItem
+
+/** Compact "Thinking" / "Session Search · 3.5s" row in the transcript. */
+data class ActivityRow(
+    val id: String,
+    val label: String,
+    val running: Boolean,
+    val durationS: Double? = null,
+    override val key: String = "act-$id",
+) : TranscriptItem
 
 data class SessionRow(val id: String, val title: String, val preview: String)
 
@@ -29,14 +42,15 @@ data class ProviderModels(val slug: String, val name: String, val models: List<S
 /**
  * Chat state over the shared GatewayConnection. Protocol mirrors what the
  * Desktop renderer drives: session.list/create/resume/history, prompt.submit,
- * message.delta / message.complete stream events, session.info for the live
- * model pair, config.set for switching, iris.tier.used for the tier toast.
+ * message.delta / message.complete, tool.start / tool.complete and
+ * reasoning.* for the activity rows, session.info for the live model pair,
+ * config.set for switching, iris.tier.used for the tier notice.
  */
 class ChatViewModel : ViewModel() {
     val sessions = MutableStateFlow<List<SessionRow>>(emptyList())
     val activeSessionId = MutableStateFlow<String?>(null)
     val activeTitle = MutableStateFlow("New chat")
-    val messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val transcript = MutableStateFlow<List<TranscriptItem>>(emptyList())
     val busy = MutableStateFlow(false)
     val currentModel = MutableStateFlow("")
     val currentProvider = MutableStateFlow("")
@@ -79,7 +93,7 @@ class ChatViewModel : ViewModel() {
             errorNotice.value = ""
             runCatching {
                 activeTitle.value = sessions.value.firstOrNull { it.id == id }?.title ?: "Chat"
-                messages.value = emptyList()
+                transcript.value = emptyList()
                 // session.list hands out STORED ids (state.db keys); resume maps
                 // one to a LIVE session id (short hex) -- with a fast path that
                 // returns the existing live id when it's already resumed. Every
@@ -92,14 +106,14 @@ class ChatViewModel : ViewModel() {
                 val liveId = resumed.str("session_id") ?: id
                 activeSessionId.value = liveId
                 val history = GatewayConnection.request("session.history", buildJsonObject { put("session_id", liveId) })
-                messages.value = (history["messages"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { row ->
+                transcript.value = (history["messages"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { row ->
                     val obj = row as? JsonObject ?: return@mapNotNull null
                     val role = obj.str("role") ?: return@mapNotNull null
                     if (role != "user" && role != "assistant") return@mapNotNull null
                     val text = obj.textContent() ?: return@mapNotNull null
                     if (text.isBlank()) return@mapNotNull null
-                    withMedia(role, text)
-                }.filter { it.text.isNotBlank() || it.mediaPath != null }
+                    withMedia(role, text) as TranscriptItem
+                }.filter { (it as? ChatMessage)?.let { m -> m.text.isNotBlank() || m.mediaPath != null } ?: true }
             }.onFailure { errorNotice.value = "resume: ${it.message}" }
         }
     }
@@ -116,7 +130,7 @@ class ChatViewModel : ViewModel() {
                 val id = result.str("session_id") ?: result.str("id") ?: return@runCatching
                 activeSessionId.value = id
                 activeTitle.value = "New chat"
-                messages.value = emptyList()
+                transcript.value = emptyList()
                 refreshSessions()
             }.onFailure { errorNotice.value = "new chat: ${it.message}" }
         }
@@ -125,7 +139,7 @@ class ChatViewModel : ViewModel() {
     fun sendPrompt(text: String) {
         val sid = activeSessionId.value ?: run { newSession(); return }
         viewModelScope.launch {
-            messages.value = messages.value + ChatMessage("user", text)
+            transcript.value = transcript.value + ChatMessage("user", text)
             busy.value = true
             runCatching {
                 GatewayConnection.request("prompt.submit", buildJsonObject {
@@ -191,11 +205,26 @@ class ChatViewModel : ViewModel() {
         val mine = eventSid.isEmpty() || eventSid == activeSessionId.value
 
         when (type) {
+            "reasoning.delta", "reasoning.available" -> if (mine) markThinking()
+
+            "tool.start", "tool.progress", "tool.generating" -> if (mine) {
+                clearThinking()
+                val id = payload.str("tool_id") ?: payload.str("name") ?: return
+                upsertActivity(ActivityRow(id, friendlyTool(payload.str("name")), running = true))
+            }
+
+            "tool.complete" -> if (mine) {
+                val id = payload.str("tool_id") ?: payload.str("name") ?: return
+                val dur = (payload["duration_s"] as? JsonPrimitive)?.content?.toDoubleOrNull()
+                upsertActivity(ActivityRow(id, friendlyTool(payload.str("name")), running = false, durationS = dur))
+            }
+
             "message.delta" -> if (mine) {
+                clearThinking()
                 val delta = payload.textContent() ?: payload.str("text") ?: return
-                val current = messages.value
-                val last = current.lastOrNull()
-                messages.value = if (last != null && last.streaming) {
+                val current = transcript.value
+                val last = current.lastOrNull() as? ChatMessage
+                transcript.value = if (last != null && last.streaming) {
                     current.dropLast(1) + last.copy(text = last.text + delta)
                 } else {
                     current + ChatMessage("assistant", delta, streaming = true)
@@ -204,10 +233,11 @@ class ChatViewModel : ViewModel() {
 
             "message.complete" -> if (mine) {
                 busy.value = false
-                val current = messages.value
-                val last = current.lastOrNull()
+                clearThinking()
+                val current = transcript.value
+                val last = current.lastOrNull() as? ChatMessage
                 val full = payload.textContent() ?: payload.str("text")
-                messages.value = when {
+                transcript.value = when {
                     last != null && last.streaming ->
                         current.dropLast(1) + withMedia("assistant", full ?: last.text)
                     !full.isNullOrBlank() -> current + withMedia("assistant", full)
@@ -229,6 +259,34 @@ class ChatViewModel : ViewModel() {
             }
         }
     }
+
+    // ── Activity-row helpers ──────────────────────────────────────────
+
+    private val thinkingKey = "thinking-live"
+
+    private fun markThinking() {
+        val current = transcript.value
+        if (current.any { it is ActivityRow && it.id == thinkingKey && it.running }) return
+        upsertActivity(ActivityRow(thinkingKey, "Thinking", running = true))
+    }
+
+    private fun clearThinking() {
+        transcript.value = transcript.value.filterNot { it is ActivityRow && it.id == thinkingKey }
+    }
+
+    private fun upsertActivity(row: ActivityRow) {
+        val current = transcript.value
+        val idx = current.indexOfLast { it is ActivityRow && (it as ActivityRow).id == row.id }
+        transcript.value = if (idx >= 0) current.toMutableList().also { it[idx] = row } else current + row
+    }
+
+    private fun friendlyTool(name: String?): String {
+        val raw = name?.takeIf { it.isNotBlank() } ?: "Tool"
+        return raw.split('_', '-', ' ').filter { it.isNotBlank() }
+            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
+
+    // ── JSON helpers ──────────────────────────────────────────────────
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.content
 
