@@ -26,8 +26,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -109,7 +118,7 @@ private fun SectionLabel(text: String) {
 
 @Composable
 private fun SettingRow(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String? = null,
     trailing: String? = null,
@@ -123,9 +132,9 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(30.dp).background(Mono.card, RoundedCornerShape(8.dp)),
+            Modifier.size(32.dp).background(Mono.card, RoundedCornerShape(9.dp)),
             contentAlignment = Alignment.Center
-        ) { Text(icon, fontSize = 15.sp) }
+        ) { Icon(icon, null, tint = Iris.amber, modifier = Modifier.size(18.dp)) }
         Column(Modifier.padding(start = 14.dp).weight(1f)) {
             Text(title, color = Mono.foreground, fontSize = 15.sp)
             if (subtitle != null) {
@@ -152,7 +161,7 @@ private fun SettingsList(prefs: Prefs, onOpen: (SettingsRoute) -> Unit, onExit: 
         Column(Modifier.verticalScroll(rememberScrollState())) {
             SectionLabel("Connection")
             SettingRow(
-                icon = "🔗", title = "Gateway",
+                icon = Icons.Rounded.Cloud, title = "Gateway",
                 subtitle = gateway.ifBlank { "Not configured" },
                 trailing = statusShort(status), trailingColor = statusColor(status),
                 onClick = { onOpen(SettingsRoute.CONNECTION) }
@@ -160,13 +169,13 @@ private fun SettingsList(prefs: Prefs, onOpen: (SettingsRoute) -> Unit, onExit: 
 
             SectionLabel("Device")
             SettingRow(
-                icon = "🔐", title = "Permissions",
-                subtitle = "What Iris can access on this phone",
+                icon = Icons.Rounded.Shield, title = "Permissions",
+                subtitle = "What Íris can access on this phone",
                 onClick = { onOpen(SettingsRoute.PERMISSIONS) }
             )
 
             SectionLabel("App")
-            SettingRow(icon = "ℹ️", title = "About", onClick = { onOpen(SettingsRoute.ABOUT) })
+            SettingRow(icon = Icons.Rounded.Info, title = "About", onClick = { onOpen(SettingsRoute.ABOUT) })
 
             Spacer(Modifier.height(24.dp))
             TextButton(onClick = onExit, modifier = Modifier.padding(start = 8.dp)) {
@@ -250,7 +259,7 @@ private fun SettingsField(label: String, value: String, password: Boolean = fals
 // ── Permissions ───────────────────────────────────────────────────────
 
 private data class CapPermission(
-    val icon: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val title: String,
     val description: String,
     val permission: String,
@@ -282,17 +291,17 @@ private fun PermissionsScreen(onBack: () -> Unit) {
     // unavailable -- the Brain simply won't route it here.
     val caps = buildList {
         if (Build.VERSION.SDK_INT >= 33) {
-            add(CapPermission("🔔", "Notifications",
+            add(CapPermission(Icons.Rounded.Notifications, "Notifications",
                 "Let the Brain reach you with a push message.",
                 Manifest.permission.POST_NOTIFICATIONS, minSdk = 33))
         }
-        add(CapPermission("📍", "Location",
+        add(CapPermission(Icons.Rounded.LocationOn, "Location",
             "Answer 'where am I' with this phone's GPS fix.",
             Manifest.permission.ACCESS_FINE_LOCATION))
-        add(CapPermission("🎙️", "Microphone",
+        add(CapPermission(Icons.Rounded.Mic, "Microphone",
             "Dictate messages by voice (speech to text).",
             Manifest.permission.RECORD_AUDIO))
-        add(CapPermission("📷", "Camera",
+        add(CapPermission(Icons.Rounded.CameraAlt, "Camera",
             "Attach a photo taken with the camera.",
             Manifest.permission.CAMERA))
     }
@@ -319,7 +328,13 @@ private fun PermissionsScreen(onBack: () -> Unit) {
                                 if (granted) Iris.amberSoft else Mono.card, RoundedCornerShape(9.dp)
                             ),
                             contentAlignment = Alignment.Center
-                        ) { Text(cap.icon, fontSize = 17.sp) }
+                        ) {
+                            Icon(
+                                cap.icon, null,
+                                tint = if (granted) Iris.amber else Mono.mutedForeground,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                         Column(Modifier.padding(start = 14.dp).weight(1f)) {
                             Text(cap.title, color = Mono.foreground, fontSize = 15.sp)
                             Text(cap.description, color = Mono.mutedForeground, fontSize = 12.sp)
