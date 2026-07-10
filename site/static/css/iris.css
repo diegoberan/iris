@@ -389,6 +389,67 @@ input.dash-input:focus {
   border-color: var(--amber);
 }
 
+/* ---------- Dashboard Layout ---------- */
+
+.dash-container {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  margin-top: 40px;
+}
+
+.dash-sidebar {
+  flex: 0 0 240px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--muted-fg);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  width: 100%;
+}
+
+.dash-sidebar-btn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dash-sidebar-btn.active {
+  color: var(--amber);
+  background: var(--amber-soft);
+  font-weight: 600;
+}
+
+.dash-content {
+  flex: 1;
+}
+
+.dash-tab-content {
+  display: none;
+}
+
+.dash-tab-content.active {
+  display: block;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
@@ -401,4 +462,8 @@ input.dash-input:focus {
   .grid-3, .timeline, .plans { grid-template-columns: 1fr; }
   .timeline-line { display: none; }
   .download-card .row { flex-wrap: wrap; }
+  
+  .dash-container { flex-direction: column; gap: 24px; }
+  .dash-sidebar { flex: none; width: 100%; flex-direction: row; overflow-x: auto; padding: 12px; gap: 8px; }
+  .dash-sidebar-btn { flex: 0 0 auto; width: auto; justify-content: center; padding: 10px 16px; }
 }

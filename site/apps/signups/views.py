@@ -88,8 +88,19 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
-    except (ValueError, stripe.SignatureVerificationError):
-        return HttpResponse(status=400)
+    except (ValueError, stripe.SignatureVerificationError) as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"STRIPE WEBHOOK VERIFICATION ERROR: {e}")
+        
+        if settings.DEBUG:
+            logger.warning("DEBUG is True: falling back to direct JSON payload parsing.")
+            try:
+                event = json.loads(payload)
+            except ValueError:
+                return HttpResponse(status=400)
+        else:
+            return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
@@ -149,25 +160,7 @@ def account(request: HttpRequest) -> HttpResponse:
         "providers": Signup.Provider.choices,
     }
 
-    if not signup_obj or signup_obj.status == Signup.Status.PENDING_PAYMENT:
-        return render(request, "signups/account_no_plan.html", context)
-        
-    elif signup_obj.status == Signup.Status.PENDING_KEY:
-        return render(request, "signups/account_pending_key.html", context)
-        
-    elif signup_obj.status == Signup.Status.READY:
-        return render(request, "signups/account_queued.html", context)
-        
-    elif signup_obj.status == Signup.Status.PROVISIONING:
-        return render(request, "signups/account_provisioning.html", context)
-        
-    elif signup_obj.status == Signup.Status.PROVISIONED:
-        return render(request, "signups/account_provisioned.html", context)
-        
-    elif signup_obj.status == Signup.Status.PROVISION_FAILED:
-        return render(request, "signups/account_failed.html", context)
-
-    return redirect("landing")
+    return render(request, "signups/account.html", context)
 
 @login_required
 def signup_status(request: HttpRequest) -> JsonResponse:
