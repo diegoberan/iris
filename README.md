@@ -73,7 +73,8 @@ This project runs **AMD-hosted Gemma** at two tiers, orchestrated live:
 3. **Serverless fallback — Fireworks AI.** Resilience tier (not AMD-hosted; used only when
    both AMD tiers are unreachable).
 
-*Evidence, configs, and reproduction steps: see [docs/amd-usage.md](docs/amd-usage.md)* (WIP).
+**Hardware, measured throughput, configs, and reproduction steps:
+[docs/amd-usage.md](docs/amd-usage.md).**
 
 ---
 
@@ -92,9 +93,57 @@ surfaces.
 - Multi-tenant provisioning layer and self-service onboarding
 - Local Services: declarative device capabilities with a schema-driven desktop UI
 
+## Where the code lives
+
+This umbrella repo holds the Íris-specific work; the persistent Brain builds on
+[Hermes Agent](https://github.com/NousResearch/hermes-agent).
+
+| Component | Path | What it is |
+|---|---|---|
+| Gemma providers | [`providers/`](providers/) | Declarative plugins: `gemma-local` (Radeon/ROCm), `gemma-amd` (Instinct/vLLM), `fireworks` (fallback). One `plugin.yaml` + `__init__.py` each. |
+| AMD cloud serving | [`infra/amd-pod/serve_gemma.sh`](infra/amd-pod/serve_gemma.sh) | vLLM-on-MI300 launch script (Gemma, 262K ctx). |
+| Local GPU serving | [`infra/local-radeon/README.md`](infra/local-radeon/README.md) | LM Studio on Radeon `gfx1200` notes. |
+| Android Node | [`android/`](android/) | Kotlin/Compose body (`ai.iris.node`): `notification.send`, `location.current` over a Ktor WebSocket. |
+| SaaS + provisioning | [`site/`](site/) | Django site: signup, Stripe checkout, and automated per-tenant Brain provisioning. |
+| Capability Protocol | [`docs/rfc/0001-capability-protocol.md`](docs/rfc/0001-capability-protocol.md) | announce / act / health, first-response-wins routing, failover. |
+| Orchestrator | `tui_gateway/orchestrator.py` (in the Hermes Brain) | The `llm.chat` tier router: desktop-local → amd-cloud → fallback. |
+
+## Setup
+
+Each component runs independently; you don't need all of them to see the core idea.
+
+**Gemma on your AMD GPU (local tier):** install [LM Studio](https://lmstudio.ai),
+load `gemma-4-12b-qat`, and start its server on `127.0.0.1:1234`. The desktop
+client's Local Services panel discovers it and announces the `llm.chat` capability.
+
+**Gemma on AMD Instinct (cloud tier):** on an AMD Developer Cloud MI300 instance with
+a ROCm container, run `bash infra/amd-pod/serve_gemma.sh` (needs `HF_TOKEN`); point the
+Brain's `GEMMA_AMD_BASE_URL` at the resulting `:8000/v1`.
+
+**The SaaS site:** `cd site && uv sync && python manage.py migrate && python manage.py
+runserver`. Config via `site/.env` (`SECRET_KEY`, `STRIPE_*`, `USE_SQLITE`). Signup
+triggers automated per-tenant Brain provisioning ([`site/apps/signups/provisioning.py`](site/apps/signups/provisioning.py)).
+
+**Android Node:** open [`android/`](android/) in Android Studio and run the `app`
+module, or sideload the prebuilt APK from the site's Downloads page. Point it at your
+Brain's gateway URL.
+
+Full AMD tiers, throughput numbers, and failover reproduction:
+**[docs/amd-usage.md](docs/amd-usage.md)**.
+
+## External services
+
+- **AMD Developer Cloud** (MI300) — cloud Gemma tier (vLLM).
+- **Fireworks AI** — serverless LLM fallback only (not AMD-hosted).
+- **Stripe** (test mode) — checkout for managed-compute / BYOK plans.
+- **Google Workspace OAuth** — optional per-tenant Gmail/Calendar/Drive integration.
+- **Cloudflare + Caddy** — DNS and automatic per-tenant TLS.
+
 ## Status
 
-Hackathon MVP under active development — submission target: **July 11, 2026**.
+Hackathon MVP — **AMD Developer Hackathon ACT II, Track 3**. Desktop, Android, and the
+AMD-tier failover are demonstrated live in the video; Wear OS is an active companion
+client.
 
 ## License
 

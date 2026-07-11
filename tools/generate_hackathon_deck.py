@@ -339,7 +339,7 @@ def slide_14(c):
 def submission_1(c):
     shell(c, 1, "Iris")
     if LOGO.exists():
-        c.drawImage(str(LOGO), 44, 335, width=66, height=66, mask="auto")
+        c.drawImage(str(LOGO), 44, 322, width=92, height=92, mask="auto")
     c.setFillColor(AMBER)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(44, 316, "AMD DEVELOPER HACKATHON ACT II / TRACK 3")
@@ -355,16 +355,38 @@ def submission_1(c):
 
 def submission_2(c):
     shell(c, 2, "Architecture")
-    title(c, "A live protocol connects the Brain to the user's world.", "MCP connects AI applications to external tools and systems. Iris adds a persistent capability layer for live user-owned devices.")
-    card(c, 45, 175, 190, 165, "Desktop", "Announces a local OpenAI-compatible Gemma endpoint and F5-TTS voice as available services.", "GPU + voice")
-    card(c, 270, 175, 190, 165, "Android", "Announces notification.send and location.current over an authenticated Ktor WebSocket.", "Action + context")
-    card(c, 495, 175, 190, 165, "Wear OS", "Native voice, TTS, sessions, and paired-phone credential synchronization to the same Brain.", "Interaction")
-    card(c, 720, 175, 190, 165, "Hermes Brain", "Registry + Orchestrator select live providers, correlate responses, and handle presence or failover.", "Persistent")
-    for a, b in ((235, 270), (460, 495), (685, 720)):
-        arrow(c, a, 257, b, 257)
+    # No subheading here — the heading plus the converging diagram carry it,
+    # and a subheading line would collide with the top row of body cards.
+    title(c, "A live protocol connects the Brain to the user's world.")
+    # Three bodies across the top — independent, each speaks to the Brain
+    # directly (NOT a chain). Their arrows converge downward onto one Brain.
+    bodies = [
+        (60, "Desktop", "Local Gemma endpoint + F5-TTS voice.", "GPU + voice"),
+        (365, "Android", "notification.send and location.current over a Ktor WebSocket.", "Action + context"),
+        (670, "Wear OS", "Native voice, TTS, sessions, paired-phone sign-in.", "Interaction"),
+    ]
+    for x, heading, body, tag in bodies:
+        card(c, x, 300, 230, 120, heading, body, tag, body_size=9.6)
+    # Brain: centered below, visually emphasized (amber border, darker fill).
+    bx, by, bw, bh = 300, 150, 360, 96
+    c.setFillColor(CARD_2)
+    c.setStrokeColor(AMBER)
+    c.setLineWidth(2)
+    c.roundRect(bx, by, bw, bh, 13, fill=1, stroke=1)
+    c.setLineWidth(1)
+    c.setFillColor(AMBER)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(bx + 20, by + bh - 22, "PERSISTENT — ONE PER USER")
+    c.setFillColor(FG)
+    c.setFont("Helvetica-Bold", 17)
+    c.drawString(bx + 20, by + bh - 45, "Hermes Brain")
+    paragraph(c, "Registry + Orchestrator pick live providers, correlate responses, and handle presence and failover.", bx + 20, by + bh - 62, 9.6, MUTED, max_width=bw - 40, leading=13)
+    # Converging arrows: each body's bottom-center down onto the Brain's top.
+    for x in (60, 365, 670):
+        arrow(c, x + 115, 300, bx + bw / 2, by + bh)
     c.setFillColor(AMBER)
     c.setFont(MONO_BOLD, 10)
-    c.drawString(45, 114, "announce -> live registry -> route action / inference -> correlated response")
+    c.drawCentredString(480, 116, "announce  ->  live registry  ->  route action / inference  ->  correlated response")
 
 
 def submission_3(c):

@@ -26,3 +26,8 @@ Thumbs.db
 *.log
 *.bak
 .firecrawl/
+
+# Local scratch / tooling artifacts (not for the public repo)
+tmp/
+graphify-out/
+android_assets-*/
