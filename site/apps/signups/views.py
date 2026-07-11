@@ -179,7 +179,7 @@ def billing_portal(request: HttpRequest) -> HttpResponse:
     if not signup_obj:
         return redirect("account")
         
-    session = stripe.billingportal.Session.create(
+    session = stripe.billing_portal.Session.create(
         customer=signup_obj.stripe_customer_id,
         return_url=request.build_absolute_uri("/account/"),
     )
@@ -187,6 +187,20 @@ def billing_portal(request: HttpRequest) -> HttpResponse:
 
 def downloads(request: HttpRequest) -> HttpResponse:
     return render(request, "signups/downloads.html")
+
+def oauth_callback(request: HttpRequest) -> HttpResponse:
+    # Public, stateless landing page for Google's OAuth redirect. We don't
+    # know or care which tenant/instance started this flow -- we just show
+    # the code so the user can paste it back into their Hermes chat. No
+    # tenant correlation, no database writes.
+    return render(
+        request,
+        "signups/oauth_callback.html",
+        {
+            "code": request.GET.get("code", ""),
+            "error": request.GET.get("error", ""),
+        },
+    )
 
 
 @login_required

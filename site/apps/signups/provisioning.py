@@ -42,7 +42,28 @@ def _run_provisioning(signup_id: int) -> None:
         # Write deterministic port
         with open(os.path.join(target_dir, "port"), "w") as f:
             f.write(str(port))
-            
+
+        # The OS/dashboard identity provision-user.sh derives from the
+        # synthetic email's local-part -- substitute it into every text
+        # file the overlay ships (persona/*.md, config.d/*.yaml, ...) so
+        # {{USER_NAME}} placeholders like /home/{{USER_NAME}}/.hermes/...
+        # resolve correctly.
+        os_username = f"signup_{signup.id}"
+        for dirpath, _dirnames, filenames in os.walk(target_dir):
+            for fname in filenames:
+                if fname in ("port",):
+                    continue
+                fpath = os.path.join(dirpath, fname)
+                try:
+                    with open(fpath, "r") as f:
+                        content = f.read()
+                except UnicodeDecodeError:
+                    continue
+                if "{{USER_NAME}}" in content:
+                    with open(fpath, "w") as f:
+                        f.write(content.replace("{{USER_NAME}}", os_username))
+
+
         # Determine credentials
         username = signup.provision_username or signup.user.username
         password = signup.provision_password
@@ -89,11 +110,32 @@ def _run_provisioning(signup_id: int) -> None:
             f.write(password)
         os.chmod(password_file, 0o600)
 
+        # Give every new tenant the shared Iris Labs Google OAuth client
+        # secret so the AGENTS.md instructions above can jump straight to
+        # generating an auth link instead of asking the user to create
+        # their own Google Cloud project. This is just the OAuth *client*
+        # (Desktop app type, not confidential) -- each customer still does
+        # their own individual consent/authorization producing their own
+        # token, nobody gets access to anyone else's Google account.
+        shared_client_secret = os.path.join(SECRETS_DIR, "google_client_secret.json")
+        tenant_hermes_dir = f"/home/{os_username}/.hermes"
+        if os.path.exists(shared_client_secret) and os.path.isdir(tenant_hermes_dir):
+            dest = os.path.join(tenant_hermes_dir, "google_client_secret.json")
+            shutil.copyfile(shared_client_secret, dest)
+            shutil.chown(dest, user=os_username, group=os_username)
+            os.chmod(dest, 0o600)
+
         # Give the tenant its own HTTPS subdomain instead of a bare IP:port.
         # Caddy auto-issues a Let's Encrypt cert per-hostname (HTTP-01, no
         # wildcard cert / DNS API needed) as long as *.iris.dberan.dev
         # already resolves to this pod.
-        hostname = f"u{signup.id}.iris.dberan.dev"
+        #
+        # Random slug, not the sequential signup id -- a predictable
+        # u1/u2/u3... pattern lets anyone enumerate every customer's
+        # dashboard hostname by just walking the counter.
+        import secrets as _secrets
+        slug = _secrets.token_hex(4)
+        hostname = f"{slug}.iris.dberan.dev"
         site_block = f"{hostname} {{\n    reverse_proxy localhost:{port}\n}}\n"
         sites_dir = "/etc/caddy/sites.d"
         os.makedirs(sites_dir, exist_ok=True)

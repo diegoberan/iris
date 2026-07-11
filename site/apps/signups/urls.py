@@ -12,5 +12,6 @@ urlpatterns = [
     path("account/update-config", views.update_config, name="update_config"),
     path("account/retry-provision", views.retry_provisioning, name="retry_provisioning"),
     path("downloads", views.downloads, name="downloads"),
+    path("oauth/callback", views.oauth_callback, name="oauth_callback"),
     path("webhooks/stripe", views.stripe_webhook, name="stripe_webhook"),
 ]
