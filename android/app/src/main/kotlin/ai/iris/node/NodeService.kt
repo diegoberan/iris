@@ -49,6 +49,10 @@ class NodeService : Service() {
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, NodeService::class.java))
+            // Keep a paired watch's Data Layer copy fresh even if it wasn't
+            // connected the last time Settings was saved.
+            val prefs = Prefs(context)
+            WearSync.push(context, prefs.gatewayUrl, prefs.username, prefs.password)
         }
 
         fun stop(context: Context) {

@@ -9,7 +9,10 @@ class Prefs(context: Context) {
     private val prefs = context.getSharedPreferences("iris_node", Context.MODE_PRIVATE)
 
     var gatewayUrl: String
-        get() = prefs.getString("gateway_url", "https://diego.dberan.dev") ?: ""
+        // No baked-in default: the gateway URL is per-user (first-run Settings
+        // screen collects it) and a personal hostname must not ship in the
+        // public repo/APK.
+        get() = prefs.getString("gateway_url", "") ?: ""
         set(value) = prefs.edit().putString("gateway_url", value.trim()).apply()
 
     var username: String

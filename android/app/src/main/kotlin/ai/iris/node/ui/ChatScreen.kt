@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -101,13 +102,18 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     val title by vm.activeTitle.collectAsState()
     val transcript by vm.transcript.collectAsState()
     val busy by vm.busy.collectAsState()
-    val model by vm.currentModel.collectAsState()
+    val configModel by vm.currentModel.collectAsState()
+    val tierOverride by vm.tierOverride.collectAsState()
+    // Live tier overlay (kill-switch failover): show who actually answered;
+    // config echoes can't yank it because it never touches currentModel.
+    val model = tierOverride ?: configModel
     val tierNotice by vm.tierNotice.collectAsState()
     val errorNotice by vm.errorNotice.collectAsState()
     val status by NodeService.status.collectAsState()
 
     var showModels by remember { mutableStateOf(false) }
-    var draft by remember { mutableStateOf("") }
+    // saveable: rotating the phone mid-typing must not wipe the draft
+    var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     val prefs = remember { ai.iris.node.Prefs(context) }
@@ -119,7 +125,13 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit) {
     }
 
     LaunchedEffect(transcript.size, (transcript.lastOrNull() as? ChatMessage)?.text?.length ?: 0) {
-        if (transcript.isNotEmpty()) listState.animateScrollToItem(transcript.lastIndex)
+        if (transcript.isEmpty()) return@LaunchedEffect
+        // Follow the stream only while the user is already at (or near) the
+        // bottom -- yanking the list on every token made scrolling up to read
+        // impossible mid-answer.
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        val nearBottom = !listState.canScrollForward || lastVisible >= transcript.lastIndex - 1
+        if (nearBottom) listState.animateScrollToItem(transcript.lastIndex)
     }
 
     ModalNavigationDrawer(
@@ -293,18 +305,88 @@ private fun AssistantMessage(message: ChatMessage) {
 
 @Composable
 private fun ActivityLine(row: ActivityRow) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier
-                .size(6.dp)
-                .background(if (row.running) Iris.amber else Mono.mutedForeground, CircleShape)
-        )
-        val suffix = row.durationS?.let { " · ${"%.1f".format(it)}s" } ?: ""
+    // Desktop ToolEntry parity, phone-sized: collapsed row keeps the old
+    // dot + name + duration look plus a one-line context label; tapping
+    // (only when there is detail to show) expands summary/args/result/diff.
+    var expanded by remember(row.id) { mutableStateOf(false) }
+    val hasDetail = !row.summary.isNullOrBlank() || !row.argsJson.isNullOrBlank() ||
+        !row.resultJson.isNullOrBlank() || !row.inlineDiff.isNullOrBlank()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .then(if (hasDetail) Modifier.clickable { expanded = !expanded } else Modifier)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .background(
+                        when {
+                            row.running -> Iris.amber
+                            row.isError -> Mono.destructive
+                            else -> Mono.mutedForeground
+                        },
+                        CircleShape
+                    )
+            )
+            val suffix = row.durationS?.let { " · ${"%.1f".format(it)}s" } ?: ""
+            Text(
+                row.label + suffix,
+                color = Mono.mutedForeground,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 10.dp)
+            )
+            if (hasDetail) {
+                Text(
+                    if (expanded) "−" else "+",
+                    color = Mono.mutedForeground,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
+        }
+        row.context?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                it,
+                color = Mono.mutedForeground.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                maxLines = if (expanded) 4 else 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 16.dp, top = 2.dp)
+            )
+        }
+        if (expanded) {
+            row.summary?.takeIf { it.isNotBlank() }?.let { ToolDetailBlock("Summary", it) }
+            row.argsJson?.takeIf { it.isNotBlank() }?.let { ToolDetailBlock("Args", it) }
+            row.inlineDiff?.takeIf { it.isNotBlank() }?.let { ToolDetailBlock("Diff", it) }
+            row.resultJson?.takeIf { it.isNotBlank() }?.let { ToolDetailBlock("Result", it) }
+        }
+    }
+}
+
+@Composable
+private fun ToolDetailBlock(label: String, text: String) {
+    Text(
+        label.uppercase(),
+        color = Mono.mutedForeground,
+        fontSize = 10.sp,
+        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+    )
+    Box(
+        Modifier
+            .padding(start = 16.dp, top = 2.dp)
+            .fillMaxWidth()
+            .background(Mono.muted, RoundedCornerShape(6.dp))
+            .padding(8.dp)
+    ) {
         Text(
-            row.label + suffix,
-            color = Mono.mutedForeground,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(start = 10.dp)
+            text,
+            color = Mono.secondaryForeground,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            maxLines = 24,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -477,7 +559,7 @@ private fun Composer(
                         modelLabel.ifBlank { "model" },
                         color = Mono.secondaryForeground, fontSize = 13.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 6.dp).width(120.dp)
+                        modifier = Modifier.padding(start = 6.dp).widthIn(max = 140.dp)
                     )
                 }
                 Spacer(Modifier.weight(1f))

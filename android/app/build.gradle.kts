@@ -41,4 +41,5 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material.icons)
     implementation(libs.activity.compose)
+    implementation(libs.play.services.wearable)
 }

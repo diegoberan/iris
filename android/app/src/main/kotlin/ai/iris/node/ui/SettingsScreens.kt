@@ -62,6 +62,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import ai.iris.node.NodeService
 import ai.iris.node.Prefs
+import ai.iris.node.WearSync
 
 private enum class SettingsRoute { MAIN, CONNECTION, PERMISSIONS, ABOUT }
 
@@ -224,6 +225,7 @@ private fun ConnectionScreen(prefs: Prefs, onBack: () -> Unit) {
             Button(
                 onClick = {
                     prefs.gatewayUrl = url; prefs.username = user; prefs.password = pass
+                    WearSync.push(context, url, user, pass)
                     NodeService.stop(context); NodeService.start(context)
                     onBack()
                 },
