@@ -6,7 +6,8 @@ from reportlab.pdfgen import canvas
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "output" / "pdf" / "iris-amd-hackathon-deck.pdf"
+SUBMISSION_OUT = ROOT / "output" / "pdf" / "iris-amd-hackathon-deck.pdf"
+TECHNICAL_OUT = ROOT / "output" / "pdf" / "iris-amd-hackathon-technical-appendix.pdf"
 LOGO = ROOT / "site" / "static" / "img" / "iris-mark.png"
 PAGE = (13.333 * 72, 7.5 * 72)
 
@@ -335,10 +336,125 @@ def slide_14(c):
     c.drawString(45, 104, "Iris is the capability fabric through which Hermes can use the real world - while the user retains control of the devices behind it.")
 
 
-def main():
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    c = canvas.Canvas(str(OUT), pagesize=PAGE)
-    c.setTitle("Iris - Technical Architecture Deck")
+def submission_1(c):
+    shell(c, 1, "Iris")
+    if LOGO.exists():
+        c.drawImage(str(LOGO), 44, 335, width=66, height=66, mask="auto")
+    c.setFillColor(AMBER)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(44, 316, "AMD DEVELOPER HACKATHON ACT II / TRACK 3")
+    c.setFillColor(FG)
+    c.setFont("Helvetica", 37)
+    c.drawString(44, 244, "One Brain. Multiple Bodies.")
+    paragraph(c, "Iris is a persistent personal AI that can use the devices a person already owns: desktop GPU, voice, phone location, notifications, and native wrist interaction.", 47, 196, 15, MUTED, max_width=600, leading=22)
+    card(c, 670, 151, 230, 210, "The difference", "Devices do not merely run an app. They announce live capabilities to the Brain. The Brain decides where work and actions should happen.", "Capability fabric")
+    c.setFillColor(DIM)
+    c.setFont("Helvetica", 10)
+    c.drawString(44, 70, "Hermes is the agent engine. Iris is the persistent multi-device product layer.")
+
+
+def submission_2(c):
+    shell(c, 2, "Architecture")
+    title(c, "A live protocol connects the Brain to the user's world.", "MCP connects AI applications to external tools and systems. Iris adds a persistent capability layer for live user-owned devices.")
+    card(c, 45, 175, 190, 165, "Desktop", "Announces a local OpenAI-compatible Gemma endpoint and F5-TTS voice as available services.", "GPU + voice")
+    card(c, 270, 175, 190, 165, "Android", "Announces notification.send and location.current over an authenticated Ktor WebSocket.", "Action + context")
+    card(c, 495, 175, 190, 165, "Wear OS", "Native voice, TTS, sessions, and paired-phone credential synchronization to the same Brain.", "Interaction")
+    card(c, 720, 175, 190, 165, "Hermes Brain", "Registry + Orchestrator select live providers, correlate responses, and handle presence or failover.", "Persistent")
+    for a, b in ((235, 270), (460, 495), (685, 720)):
+        arrow(c, a, 257, b, 257)
+    c.setFillColor(AMBER)
+    c.setFont(MONO_BOLD, 10)
+    c.drawString(45, 114, "announce -> live registry -> route action / inference -> correlated response")
+
+
+def submission_3(c):
+    shell(c, 3, "Capability protocol")
+    title(c, "The technical novelty: presence-aware capability routing.", "A Body announces what is available. The Registry updates on connect or disconnect. The Orchestrator chooses a provider, sends a correlated request, and recovers between turns.")
+    code_box(c, 45, 150, 390, 190, [
+        "hermes.capabilities.announce",
+        "{ device: 'android',",
+        "  notification: { available: true },",
+        "  location: { available: true } }",
+        "",
+        "disconnect -> capability leaves registry",
+    ])
+    code_box(c, 485, 150, 425, 190, [
+        "notification.send.request",
+        "{ title, body, request_id }",
+        "",
+        "device.action.response",
+        "{ request_id, success, device }",
+        "",
+        "first valid response wins",
+    ], GREEN)
+    c.setFillColor(FG)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(45, 110, "Validated on real Android hardware")
+    paragraph(c, "A Galaxy S20 FE connected to the production gateway, received a real high-priority notification, and returned a live GPS fix on demand. If no Body is present, the integration returns a clear HTTP 503.", 45, 86, 10.5, MUTED, max_width=840, leading=15)
+
+
+def submission_4(c):
+    shell(c, 4, "AMD-hosted Gemma")
+    title(c, "Your GPU first. AMD cloud when needed.", "Iris maintains one OpenAI-compatible inference contract while moving execution across available AMD compute routes.")
+    card(c, 45, 185, 205, 155, "Radeon RX 9060 XT", "Gemma runs locally through LM Studio beside Dot's F5-TTS voice. This is the private first route when the desktop is online.", "AMD local")
+    card(c, 280, 185, 205, 155, "AMD MI300 pod", "The current cloud runtime hosts Gemma through vLLM. It is the AMD-hosted route when local capacity is unavailable.", "AMD cloud")
+    card(c, 515, 185, 205, 155, "Radeon PRO W7900", "Gemma Q4 was tested in the hackathon environment through llama.cpp, proving the route on AMD workstation hardware too.", "Validation")
+    card(c, 750, 185, 160, 155, "Resilience", "Fireworks AI API is wired as the final external fallback route.", "Fallback")
+    c.setFillColor(AMBER)
+    c.setFont(MONO_BOLD, 10)
+    c.drawString(46, 120, "RX 9060 XT / local Gemma -> MI300 / vLLM -> Fireworks API")
+    c.setFillColor(DIM)
+    c.setFont("Helvetica", 9.5)
+    c.drawString(46, 94, "Conversation state stays in the Brain; if a route disappears, the next turn advances to the next provider.")
+
+
+def submission_5(c):
+    shell(c, 5, "Product readiness")
+    title(c, "A SaaS delivery path already exists behind the demo.", "Iris is not a landing page around a prototype: account creation, checkout, automated provisioning, and tenant isolation are part of the product architecture.")
+    steps = [
+        ("01", "Account", "Django account and customer console."),
+        ("02", "Plan", "Stripe checkout for managed compute or BYOK."),
+        ("03", "Provision", "Dedicated Ubuntu tenant created automatically."),
+        ("04", "Connect", "A private Brain receives its own Bodies."),
+    ]
+    x = 45
+    for no, heading, body in steps:
+        card(c, x, 180, 202, 154, heading, body, no)
+        x += 218
+    c.setFillColor(FG)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(45, 118, "Per-tenant isolation")
+    paragraph(c, "Every tenant receives a unique Unix identity, Hermes runtime, memory, credentials, environment, and services. The system has also been used in real multi-tenant deployments.", 45, 94, 10.5, MUTED, max_width=850, leading=15)
+
+
+def submission_6(c):
+    shell(c, 6, "Why Iris")
+    title(c, "An agent that persists - and can act through the real world.", "Iris turns personal AI from an isolated chat session into an owned Brain with expandable, live capabilities.")
+    card(c, 45, 175, 270, 160, "Original", "A presence-aware Capability Protocol + Orchestrator: devices announce what they can do; the Brain routes actions and inference across live providers.", "Core innovation")
+    card(c, 345, 175, 270, 160, "Technically real", "Authenticated gateway, Registry, Android actions, desktop local services, AMD-hosted Gemma, and explicit failover behavior.", "Working system")
+    card(c, 645, 175, 270, 160, "Ready to grow", "A user can create an account, pay, receive an isolated Brain, and attach their own devices and compute.", "Product path")
+    c.setFillColor(AMBER)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(45, 105, "Iris is the capability fabric through which Hermes interacts with the world.")
+    c.setFillColor(DIM)
+    c.setFont("Helvetica", 10)
+    c.drawString(45, 78, "github.com/diegoberan/iris  |  iris.dberan.dev")
+
+
+def generate_submission():
+    SUBMISSION_OUT.parent.mkdir(parents=True, exist_ok=True)
+    c = canvas.Canvas(str(SUBMISSION_OUT), pagesize=PAGE)
+    c.setTitle("Iris - AMD Developer Hackathon ACT II")
+    for slide in (submission_1, submission_2, submission_3, submission_4, submission_5, submission_6):
+        slide(c)
+        c.showPage()
+    c.save()
+
+
+def generate_technical_appendix():
+    TECHNICAL_OUT.parent.mkdir(parents=True, exist_ok=True)
+    c = canvas.Canvas(str(TECHNICAL_OUT), pagesize=PAGE)
+    c.setTitle("Iris - Technical Architecture Appendix")
     for slide in (
         slide_1, slide_2, slide_3, slide_4, slide_5, slide_6, slide_7,
         slide_8, slide_9, slide_10, slide_11, slide_12, slide_13, slide_14,
@@ -346,8 +462,10 @@ def main():
         slide(c)
         c.showPage()
     c.save()
-    print(OUT)
+    print(TECHNICAL_OUT)
 
 
 if __name__ == "__main__":
-    main()
+    generate_submission()
+    generate_technical_appendix()
+    print(SUBMISSION_OUT)
