@@ -130,7 +130,20 @@ def slide_1(c):
 
 
 def slide_2(c):
-    shell(c, 2, "System topology")
+    shell(c, 2, "Positioning")
+    title(c, "MCP connects AI applications to external systems.", "Iris gives a persistent agent a live capability fabric across the devices a user already owns.")
+    card(c, 45, 180, 250, 155, "MCP", "A standard way for an AI application to connect to tools, data sources, and workflows.", "External systems", BLUE)
+    card(c, 355, 180, 250, 155, "Hermes", "The agent engine: persistent context, memory, tools, execution policy, and orchestration.", "Agent runtime", AMBER)
+    card(c, 665, 180, 250, 155, "Iris", "The product layer: a capability protocol and device runtime that lets Hermes use live user-owned hardware.", "Device fabric", GREEN)
+    arrow(c, 295, 257, 355, 257, BLUE)
+    arrow(c, 605, 257, 665, 257, AMBER)
+    c.setFillColor(AMBER)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(45, 112, "Hermes is the agent engine. Iris is the persistent multi-device product layer.")
+
+
+def slide_3(c):
+    shell(c, 3, "System topology")
     title(c, "The Brain is persistent. Bodies are opportunistic.", "The data plane keeps the agent reachable 24/7 while the capability plane expands or contracts as devices connect.")
     card(c, 45, 145, 180, 180, "Desktop Body", "Electron desktop detects local services and announces GPU LLM and F5-TTS voice endpoints.", "Local machine")
     card(c, 267, 145, 180, 180, "Android Body", "Kotlin foreground service maintains a Ktor WebSocket. It announces notification and location.", "Mobile")
@@ -144,8 +157,8 @@ def slide_2(c):
     c.drawString(45, 105, "Each Body owns its hardware and permissions. The Brain owns intent, context, tool use, and execution policy.")
 
 
-def slide_3(c):
-    shell(c, 3, "Protocol")
+def slide_4(c):
+    shell(c, 4, "Protocol")
     title(c, "A small protocol turns devices into an agent capability fabric.", "Bodies announce what is available after connection, then receive actions over the same authenticated gateway WebSocket.")
     code_box(c, 45, 142, 410, 203, [
         "hermes.capabilities.announce",
@@ -169,8 +182,8 @@ def slide_3(c):
     paragraph(c, "Push actions: notification.send. Pull actions: location.current returns latitude, longitude, and accuracy in the correlated response envelope.", 45, 78, 10.5, MUTED, max_width=780, leading=15)
 
 
-def slide_4(c):
-    shell(c, 4, "Registry and routing")
+def slide_5(c):
+    shell(c, 5, "Registry and routing")
     title(c, "Presence is a routing signal, not a settings screen.", "The Capability Registry is updated by announce and disconnect events. The Orchestrator receives a live provider chain for every capability.")
     card(c, 45, 160, 195, 170, "1. Register", "An announce payload is namespaced by capability and bound to a device type. Registry state changes without redeploying the Brain.", "On connect")
     card(c, 276, 160, 195, 170, "2. Select", "For each action, the Orchestrator chooses the best provider in its configured, registry-aware chain.", "Per action")
@@ -181,8 +194,8 @@ def slide_4(c):
     c.drawString(46, 105, "registry + config -> ordered providers -> action -> correlated result")
 
 
-def slide_5(c):
-    shell(c, 5, "Connection and trust")
+def slide_6(c):
+    shell(c, 6, "Connection and trust")
     title(c, "The Node never starts with an open socket.", "Authentication happens before the persistent connection. The gateway hands the Body a single-use WebSocket ticket after login.")
     steps = [
         ("01", "Login", "POST /auth/password-login with the selected provider."),
@@ -208,8 +221,8 @@ def slide_5(c):
     c.drawString(45, 122, "The ticketed socket keeps the action channel authenticated without placing a long-lived credential in every message.")
 
 
-def slide_6(c):
-    shell(c, 6, "Android Body")
+def slide_7(c):
+    shell(c, 7, "Android Body")
     title(c, "Android exposes real-world context only when the Brain needs it.", "The app is Kotlin-based, uses Ktor for the gateway WebSocket, and maintains the Body with a foreground service.")
     card(c, 45, 170, 205, 160, "Lifecycle", "Login, fetch a WebSocket ticket, connect, announce, and repeat announce on reconnect. It is designed for a persistent mobile session.", "Kotlin + Ktor")
     card(c, 280, 170, 205, 160, "notification.send", "The Brain emits a request. Android posts a high-priority OS notification then answers device.action.response.", "Push")
@@ -220,8 +233,8 @@ def slide_6(c):
     c.drawString(45, 112, "Important: location is not streamed to the cloud. It is requested on demand through the capability action.")
 
 
-def slide_7(c):
-    shell(c, 7, "Desktop Body")
+def slide_8(c):
+    shell(c, 8, "Desktop Body")
     title(c, "The desktop contributes private compute and a voice persona.", "The Electron desktop watches local services, checks their health, and announces available endpoints to the Brain.")
     code_box(c, 45, 148, 385, 195, [
         "device: 'desktop'",
@@ -239,8 +252,8 @@ def slide_7(c):
     c.drawString(45, 108, "The Brain can use the machine when it is online. When it is not, the routing chain advances instead of losing the assistant.")
 
 
-def slide_8(c):
-    shell(c, 8, "Wear OS client")
+def slide_9(c):
+    shell(c, 9, "Wear OS client")
     title(c, "A native wrist client for the same Brain.", "The current Wear OS implementation prioritizes direct interaction: short voice exchanges, spoken responses, sessions, and seamless sign-in from the paired phone.")
     card(c, 46, 172, 205, 160, "Gateway client", "Ktor client mirrors the phone connection model: auth, ticket, and a persistent WebSocket to Hermes.", "Transport")
     card(c, 281, 172, 205, 160, "Voice UX", "Native speech-to-text and TTS make the watch a low-friction conversational surface rather than a notification mirror.", "Interaction")
@@ -248,8 +261,8 @@ def slide_8(c):
     card(c, 751, 172, 160, 160, "Scope today", "The watch is a direct client. Sensor and heart-rate capabilities are a planned capability-protocol extension.", "Honest status", BLUE)
 
 
-def slide_9(c):
-    shell(c, 9, "AMD compute fabric")
+def slide_10(c):
+    shell(c, 10, "AMD compute fabric")
     title(c, "One inference contract across local, cloud, and fallback routes.", "Every route is OpenAI-compatible, so Hermes can change provider without changing the agent interface or conversation state.")
     card(c, 45, 175, 205, 160, "Local AMD", "Radeon RX 9060 XT 16 GB runs Gemma through LM Studio. First choice when the desktop is live and privacy matters.", "Desktop tier")
     card(c, 280, 175, 205, 160, "AMD cloud", "The live pod uses an MI300 and vLLM. Gemma is served at /v1 with GPU memory utilization and long-context configuration.", "Current runtime")
@@ -260,8 +273,8 @@ def slide_9(c):
     c.drawString(46, 112, "RX 9060 XT / LM Studio -> MI300 / vLLM -> Fireworks API")
 
 
-def slide_10(c):
-    shell(c, 10, "Inference handoff")
+def slide_11(c):
+    shell(c, 11, "Inference handoff")
     title(c, "The Brain keeps the conversation; compute can move.", "Routing is about available capability and execution policy, not moving the user's agent identity from one model host to another.")
     card(c, 45, 195, 185, 135, "1. Intent", "Hermes receives the turn with its memory, tools, and conversation context.", "Brain")
     card(c, 270, 195, 185, 135, "2. Resolve", "The Orchestrator observes live providers and selects a model route.", "Policy")
@@ -272,8 +285,8 @@ def slide_10(c):
     paragraph(c, "This separation is what lets Iris preserve an always-on personal assistant while still harvesting the user's own GPU when it becomes available.", 45, 125, 11, MUTED, max_width=820, leading=16)
 
 
-def slide_11(c):
-    shell(c, 11, "SaaS implementation")
+def slide_12(c):
+    shell(c, 12, "SaaS implementation")
     title(c, "The product path is implemented, not mocked.", "Iris combines sign-up, Stripe checkout, automated provisioning, and isolated Hermes environments so the architecture can be delivered as a service.")
     steps = [
         ("Account", "Django account and console establish the customer identity."),
@@ -291,8 +304,8 @@ def slide_11(c):
     paragraph(c, "Unique Unix identity, Hermes runtime, memory, credentials, environment variables, and services. Tenant setup also uses a per-tenant dashboard secret for server-to-server trust.", 45, 94, 10.5, MUTED, max_width=850, leading=15)
 
 
-def slide_12(c):
-    shell(c, 12, "Integration surface")
+def slide_13(c):
+    shell(c, 13, "Integration surface")
     title(c, "Capabilities become tools without modifying the agent core.", "The iris-body skill invokes the Orchestrator through loopback HTTP. The transport and device protocol remain behind a narrow integration surface.")
     code_box(c, 45, 155, 390, 185, [
         "POST /iris/notify",
@@ -311,15 +324,15 @@ def slide_12(c):
     c.drawString(45, 112, "The same pattern can extend to future Bodies and new capability types without creating a custom agent integration for every device.")
 
 
-def slide_13(c):
-    shell(c, 13, "Proof and next steps")
+def slide_14(c):
+    shell(c, 14, "Proof and next steps")
     title(c, "What is running, what is deliberately next.", "The implementation is centered on a working end-to-end vertical slice, then expands the capability vocabulary with the same protocol.")
     card(c, 45, 165, 270, 175, "Working now", "Production Brain, authenticated WebSocket, registry and orchestration flow, Android notification/location, desktop local services, MI300 vLLM runtime, checkout, and tenant provisioning.", "Implemented", GREEN)
     card(c, 345, 165, 270, 175, "Validated", "Android ran against the production gateway on a Galaxy S20 FE. Notification delivery and a live GPS fix were returned end-to-end through the agent workflow.", "Evidence", AMBER)
     card(c, 645, 165, 270, 175, "Next protocol extensions", "Stable per-Body identities, versioned capability schemas, granular permissions, streaming results, and Watch sensor capabilities.", "Roadmap", BLUE)
     c.setFillColor(AMBER)
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(45, 104, "Iris is the door through which Hermes can use the real world - while the user retains control of the devices behind it.")
+    c.drawString(45, 104, "Iris is the capability fabric through which Hermes can use the real world - while the user retains control of the devices behind it.")
 
 
 def main():
@@ -328,7 +341,7 @@ def main():
     c.setTitle("Iris - Technical Architecture Deck")
     for slide in (
         slide_1, slide_2, slide_3, slide_4, slide_5, slide_6, slide_7,
-        slide_8, slide_9, slide_10, slide_11, slide_12, slide_13,
+        slide_8, slide_9, slide_10, slide_11, slide_12, slide_13, slide_14,
     ):
         slide(c)
         c.showPage()
