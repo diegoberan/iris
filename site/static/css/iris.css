@@ -183,6 +183,11 @@ footer a { color: var(--dim-fg); text-decoration: underline; }
 .card h3 { font-size: 18px; font-weight: 600; color: var(--fg); margin: 0 0 10px; }
 .card p { font-size: 14.5px; line-height: 1.7; color: var(--muted-fg); margin: 0; }
 
+.evidence-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 24px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.evidence-strip div { display: flex; flex-direction: column; gap: 5px; background: var(--bg); padding: 21px 24px; }
+.evidence-strip strong { color: var(--amber); font-family: var(--font-mono); font-size: 20px; font-weight: 500; }
+.evidence-strip span { color: var(--muted-fg); font-size: 13px; }
+
 .badge {
   display: inline-block; background: var(--amber-soft); color: var(--amber);
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
@@ -459,7 +464,7 @@ input.dash-input:focus {
   .hero, .section, .final-cta { padding-left: 24px; padding-right: 24px; }
   .hero h1 { font-size: 36px; }
   .section-head h2 { font-size: 28px; }
-  .grid-3, .timeline, .plans { grid-template-columns: 1fr; }
+  .grid-3, .timeline, .plans, .evidence-strip { grid-template-columns: 1fr; }
   .timeline-line { display: none; }
   .routing-path { grid-template-columns: 1fr; gap: 12px; }
   .routing-arrow { display: none; }

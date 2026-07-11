@@ -76,50 +76,58 @@
 <section class="section" id="features">
   <div class="section-inner">
     <div class="section-head">
-      <span class="eyebrow">One brain, many bodies</span>
-      <h2>Every device is an extension of the same agent.</h2>
-      <p>Not three apps with three histories — one persistent brain your devices connect to.</p>
+      <span class="eyebrow">Bodies, not companion apps</span>
+      <h2>Every connection adds a real capability.</h2>
+      <p>Not three apps with three histories: one persistent Brain, with devices that contribute compute, context, and ways to act.</p>
     </div>
     <div class="grid-3">
       <div class="card">
-        <h3>Desktop</h3>
-        <p>Full chat, sessions, and projects — Local Services announce speech and inference straight back to the Brain.</p>
+        <span class="badge">Desktop Node</span>
+        <h3>Your GPU and voice.</h3>
+        <p>Local Services announce Gemma inference and F5-TTS voice synthesis from the Radeon directly to the Brain.</p>
       </div>
       <div class="card">
-        <h3>Android</h3>
-        <p>A native chat client — and a body. It can receive a push from the Brain, or answer "where am I" with its GPS.</p>
+        <span class="badge">Android Node</span>
+        <h3>Reach and context.</h3>
+        <p>A persistent phone connection can receive a Brain-triggered alert or return a live GPS fix when the agent needs it.</p>
       </div>
       <div class="card">
-        <h3>Wear OS</h3>
-        <p>Runs on the wrist — voice, TTS, and native watch interaction with the same persistent agent.</p>
+        <span class="badge">Wear OS</span>
+        <h3>The Brain on your wrist.</h3>
+        <p>Native voice, TTS, and session access on the watch, with connection details synchronized from the paired phone.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section section-alt">
+<section class="section section-alt" id="compute">
   <div class="section-inner">
     <div class="section-head">
-      <span class="eyebrow">Compute</span>
-      <h2>Capability-tiered routing across AMD hardware.</h2>
-      <p>Live failover keeps the conversation going, no matter which tier answers.</p>
+      <span class="eyebrow">AMD compute, demonstrably</span>
+      <h2>Your GPU first. AMD cloud when you need it.</h2>
+      <p>One OpenAI-compatible route lets the Brain use the closest capable hardware, then advance when a local body goes offline.</p>
     </div>
     <div class="grid-3">
       <div class="card">
         <span class="badge">Local</span>
-        <h3>Your GPU</h3>
-        <p>Gemma running on your own Radeon (ROCm) — first in the routing chain.</p>
+        <h3>RX 9060 XT</h3>
+        <p>Gemma runs beside Dot's F5-TTS voice on the user's own Radeon — private, available, and first in line.</p>
       </div>
       <div class="card">
         <span class="badge">AMD Cloud</span>
-        <h3>Instinct · vLLM</h3>
-        <p>Falls over to AMD-hosted compute the moment your local body goes offline.</p>
+        <h3>MI300 · vLLM</h3>
+        <p>The current cloud runtime hosts Gemma on an AMD MI300 pod when local capacity is unavailable or scale matters.</p>
       </div>
       <div class="card">
         <span class="badge blue">Fallback</span>
-        <h3>Serverless</h3>
-        <p>A last-resort cloud tier keeps the conversation alive — always.</p>
+        <h3>Failover you can see</h3>
+        <p>Stop the local model and the next turn is routed to the surviving tier. The conversation stays with the Brain.</p>
       </div>
+    </div>
+    <div class="evidence-strip" aria-label="Measured project evidence">
+      <div><strong>32 / 32</strong><span>local Gemma tool calls passed</span></div>
+      <div><strong>~71 tok/s</strong><span>measured on AMD cloud</span></div>
+      <div><strong>2 live acts</strong><span>Android notification + GPS</span></div>
     </div>
   </div>
 </section>
@@ -127,8 +135,8 @@
 <section class="section" id="beliefs">
   <div class="section-inner-narrow">
     <div class="section-head">
-      <span class="eyebrow">Our beliefs</span>
-      <h2>Why Iris exists.</h2>
+      <span class="eyebrow">The protocol behind the product</span>
+      <h2>Why Íris exists.</h2>
     </div>
     <div class="beliefs">
       <div class="belief-row">
@@ -158,9 +166,9 @@
 <section class="section section-alt" id="pricing">
   <div class="section-inner-narrow">
     <div class="section-head">
-      <span class="eyebrow">Pricing</span>
-      <h2>Two ways to run your Iris.</h2>
-      <p>Both include hosting on Iris Labs infrastructure and fork maintenance.</p>
+      <span class="eyebrow">A real SaaS path</span>
+      <h2>Two ways to run your Íris.</h2>
+      <p>Choose your own model provider or managed AMD compute. Both plans provision a dedicated Brain and include the Íris control plane.</p>
     </div>
     <div class="plans pricing-preview" style="margin-bottom:44px">
       <div class="plan">
@@ -177,7 +185,7 @@
       </div>
     </div>
     <div style="text-align:center">
-      <a href="/signup" class="btn">See full plan details</a>
+      <a href="/signup" class="btn">Open live onboarding</a>
     </div>
   </div>
 </section>
@@ -186,8 +194,8 @@
   <div class="final-cta-glow"></div>
   <div class="final-cta-content">
     <h2>One Brain. Multiple Bodies.</h2>
-    <p>Get your dedicated Iris instance running today.</p>
-    <a href="/signup" class="btn">Get Started</a>
+    <p>Provision a dedicated Brain. Then let your devices make it capable.</p>
+    <a href="/signup" class="btn">Create your Brain</a>
   </div>
 </section>
 
