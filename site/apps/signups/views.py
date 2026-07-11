@@ -347,3 +347,7 @@ def retry_provisioning(request: HttpRequest) -> HttpResponse:
             
     return redirect("account")
 
+
+def lab(request: HttpRequest) -> HttpResponse:
+    return render(request, "signups/lab.html")
+

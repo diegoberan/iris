@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  .lab-hero {
+    position: relative;
+    padding: 90px 24px 60px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .lab-glow {
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    width: 600px;
+    height: 600px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(76, 110, 130, 0.18) 0%, rgba(224, 160, 58, 0.08) 45%, rgba(14, 14, 14, 0) 75%);
+    filter: blur(20px);
+    pointer-events: none;
+  }
+  .lab-content {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .lab-content h1 {
+    font-weight: 300;
+    font-size: 48px;
+    color: var(--fg);
+    margin: 16px 0;
+    letter-spacing: -0.5px;
+  }
+  .lab-content .tagline {
+    font-size: 17px;
+    color: var(--muted-fg);
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+  .specs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14.5px;
+    text-align: left;
+  }
+  .specs-table th, .specs-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .specs-table th {
+    font-family: var(--font-mono);
+    color: var(--blue);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .specs-table td strong {
+    color: var(--fg);
+  }
+  .specs-table td span {
+    color: var(--muted-fg);
+  }
+  .easter-egg-section {
+    border-top: 1px dashed var(--border);
+    margin-top: 56px;
+    padding-top: 40px;
+    font-style: italic;
+    color: var(--dim-fg);
+  }
+</style>
+
+<div class="lab-hero">
+  <div class="lab-glow"></div>
+  <div class="lab-content">
+    <span class="eyebrow">Behind the scenes</span>
+    <h1>Welcome to The Lab</h1>
+    <p class="tagline">An informal, unfiltered hacker space for future roadmaps, current hardware specs, community shoutouts, and personal developer thoughts.</p>
+  </div>
+</div>
+
+<main class="main-narrow">
+  <!-- Section 1: Future Roadmap -->
+  <section class="dash-card">
+    <h3>🚀 Unordered Future Ideas</h3>
+    <p style="color: var(--muted-fg); margin-bottom: 24px; line-height: 1.6;">A raw list of features, experiments, and wild integrations I want to build next into the Íris ecosystem:</p>
+    <ul style="color: var(--secondary-fg); line-height: 1.8; padding-left: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <li>
+        <strong>Even Realities G2 smart glasses integration:</strong> Expose a head-up display capability. If the Even Realities team is reading this: <em>please open an API!</em> I'd love to stream agent alerts directly onto my HUD.
+      </li>
+      <li>
+        <strong>Wear OS Voice synthesis:</strong> Run a lightweight F5-TTS cloned voice model locally on target devices, generating audio responses directly on the watch.
+      </li>
+      <li>
+        <strong>Local device triggers:</strong> Allow local scripts to trigger actions based on hardware status (e.g. flashing keyboard Morse code when the orchestrator performs a failover).
+      </li>
+      <li>
+        <strong>Sarcastic Notification Listener:</strong> Build an Android capability that reads incoming notifications aloud in a playful, completely custom, sarcastic tone.
+      </li>
+    </ul>
+  </section>
+
+  <!-- Section 2: PC Specs -->
+  <section class="dash-card">
+    <h3>💻 Current Rig & AMD Appeal</h3>
+    <p style="color: var(--muted-fg); line-height: 1.6; margin-bottom: 20px;">
+      I've been a huge fan of AMD for years, squeezing every bit of performance out of classic components. Here are the exact verified specifications of the machine powering this development:
+    </p>
+    
+    <table class="specs-table">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Specification</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Processor</strong></td>
+          <td>Intel Core i7-4770K (Haswell)</td>
+        </tr>
+        <tr>
+          <td><strong>Motherboard</strong></td>
+          <td>ASUS Z97-A (LGA 1150, Z97 Chipset)</td>
+        </tr>
+        <tr>
+          <td><strong>CPU Cooler</strong></td>
+          <td>Corsair Hydro Series H90 (140mm Liquid CPU Cooler)</td>
+        </tr>
+        <tr>
+          <td><strong>Memory</strong></td>
+          <td>16GB (4x4GB) Kingston HyperX DDR3 2400MHz</td>
+        </tr>
+        <tr>
+          <td><strong>Storage</strong></td>
+          <td>1TB Kingston NV2 PCIe 4.0 NVMe SSD</td>
+        </tr>
+        <tr>
+          <td><strong>Graphics (GPU)</strong></td>
+          <td>Radeon RX 9060 XT (16GB VRAM)</td>
+        </tr>
+        <tr>
+          <td><strong>Power Supply</strong></td>
+          <td>Corsair CX750 (750W 80 Plus Bronze)</td>
+        </tr>
+        <tr>
+          <td><strong>Chassis</strong></td>
+          <td>Cooler Master CM 690</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: var(--amber-soft); border-left: 2px solid var(--amber); padding: 16px 20px; border-radius: 4px; margin-top: 24px;">
+      <p style="margin: 0; color: var(--secondary-fg); font-size: 14.5px; line-height: 1.6;">
+        <strong>😢 Notice me AMD / Help a dev:</strong> As you can see, I am running a classic 2014 processor and memory setup. A modern machine with a <strong>Ryzen 9 9900X or 9950X</strong> paired with <strong>128GB of RAM</strong> would be a dream come true, allowing me to run local MoE (Mixture of Experts) models without constantly swapping RAM to disk. Solidarize with a developer!
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 3: Thanks -->
+  <section class="dash-card">
+    <h3>🙏 Acknowledgments</h3>
+    <p style="color: var(--secondary-fg); line-height: 1.7; margin-bottom: 16px;">
+      This project was made possible by the incredible support of the open-source community and hackathon partners:
+    </p>
+    <ul style="color: var(--muted-fg); line-height: 1.7; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+      <li><strong>Lablab.ai:</strong> For organizing the event and coordinating the platform.</li>
+      <li><strong>AMD:</strong> For providing access to GPU infrastructure (MI300 pods), developer tools, and computing credits.</li>
+      <li><strong>Fireworks AI:</strong> For providing API credits, ensuring we had a reliable serverless fallback route.</li>
+      <li><strong>Nous Research:</strong> For creating the core `hermes-agent`. I plan to organize these codebases and submit a clean upstream Pull Request to merge the orchestrator and capability extensions. Since I'm a developer by hobby, the Hermes core team gets the final word on what they want to adopt!</li>
+    </ul>
+
+    <!-- Easter Egg Section -->
+    <div class="easter-egg-section">
+      <p style="margin: 0; font-size: 13.5px; line-height: 1.6; text-align: center;">
+        P.S. Legends speak of a mythical ADM in the south of Brazil who wields a black Python-logo mug like Thor wields Mjolnir, always filled to the brim with Niflheim-dark coffee to fuel the most epic coding courses in the country. Wherever you are, cheers! ☕🐍
+      </p>
+    </div>
+  </section>
+</main>
+
+{% endblock %}
