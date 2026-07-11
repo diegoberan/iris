@@ -63,3 +63,19 @@ class AllowedProvisionEmail(models.Model):
 
     def __str__(self) -> str:
         return f"{self.email} ({self.note})"
+
+
+class PendingGoogleAuth(models.Model):
+    """A Google OAuth flow started by a tenant's own Hermes environment,
+    waiting for the callback. `state` is the correlation key Google echoes
+    back; `code_verifier` is the PKCE secret needed to complete the token
+    exchange. Single-use -- deleted once the callback consumes it.
+    """
+
+    state = models.CharField(max_length=64, unique=True)
+    tenant_username = models.CharField(max_length=64)
+    code_verifier = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"{self.tenant_username} ({self.state[:8]}...)"

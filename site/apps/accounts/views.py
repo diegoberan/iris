@@ -6,10 +6,10 @@ from .forms import UserRegistrationForm
 
 class CustomLoginView(LoginView):
     template_name = "accounts/login.html"
-    
-    def form_valid(self, form):
-        self.request.session["user_plain_password"] = form.cleaned_data.get("password")
-        return super().form_valid(form)
+    # NOTE: we intentionally do NOT capture the login password. The tenant
+    # dashboard gets its own randomly generated password (shown on the account
+    # page) so the customer's reusable login credential never lives in
+    # plaintext in the session, DB, or the tenant env file.
 
 def register(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
@@ -21,8 +21,9 @@ def register(request: HttpRequest) -> HttpResponse:
             user = form.save(commit=False)
             user.set_password(form.cleaned_data["password"])
             user.save()
-            # Capture plain password for automatic VM setup
-            request.session["user_plain_password"] = form.cleaned_data["password"]
+            # Do NOT persist the plaintext password. The dashboard password is
+            # generated independently at provisioning time (views.py:
+            # secrets.token_hex fallback) and surfaced on the account page.
             login(request, user)
             return redirect("account")
     else:

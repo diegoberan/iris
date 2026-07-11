@@ -234,6 +234,8 @@ input::placeholder { color: #666; }
 .download-card .platform { font-size: 18px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
 .download-card .note { color: var(--dim-fg); font-size: 13px; }
 .download-card .hint { padding-top: 14px; margin-top: 18px; border-top: 1px solid var(--border); }
+.download-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.download-buttons .btn-outline { flex: 1 1 auto; text-align: center; }
 
 /* ---------- Success page ---------- */
 

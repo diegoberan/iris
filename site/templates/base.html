@@ -33,7 +33,10 @@
           <a href="{% url 'logout' %}" style="color: var(--dim-fg); font-size: 14px;">Logout</a>
         </div>
       {% else %}
-        <a href="/signup" class="btn btn-small">Get Started</a>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a href="{% url 'login' %}" style="color: var(--dim-fg); font-size: 14px;">Log in</a>
+          <a href="/signup" class="btn btn-small" style="margin: 0;">Get Started</a>
+        </div>
       {% endif %}
     </nav>
   </header>

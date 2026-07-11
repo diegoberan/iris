@@ -136,7 +136,20 @@ def _run_provisioning(signup_id: int) -> None:
         import secrets as _secrets
         slug = _secrets.token_hex(4)
         hostname = f"{slug}.iris.dberan.dev"
-        site_block = f"{hostname} {{\n    reverse_proxy localhost:{port}\n}}\n"
+        # The dashboard bounces an unauthenticated visitor to
+        # /auth/login?provider=basic, but the actual login page lives at
+        # /login -- redirect it at the edge, else the bare URL dead-ends on a
+        # blank /auth/login (a judge clicking the link would just see it fail).
+        site_block = (
+            f"{hostname} {{\n"
+            f"    @basic_auth_login {{\n"
+            f"        path /auth/login\n"
+            f"        query provider=basic\n"
+            f"    }}\n"
+            f"    redir @basic_auth_login /login?{{query}} 302\n"
+            f"    reverse_proxy localhost:{port}\n"
+            f"}}\n"
+        )
         sites_dir = "/etc/caddy/sites.d"
         os.makedirs(sites_dir, exist_ok=True)
         with open(os.path.join(sites_dir, f"signup_{signup.id}.caddy"), "w") as f:

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
 <section class="hero" style="padding:96px 24px 0">
   <div class="hero-content" style="max-width:480px">
     <span class="eyebrow">Step 4 of 4</span>
     <h1 style="font-size:38px">Download Íris</h1>
-    <p class="tagline">Desktop, Android, and Wear OS — same Brain, three bodies. Connect using the credentials from your signup email.</p>
+    <p class="tagline">Desktop and Android — same Brain, multiple bodies. Connect using the credentials from your signup email.</p>
   </div>
 </section>
 
@@ -14,10 +15,14 @@
       <div class="row">
         <div>
           <div class="platform">Desktop</div>
-          <div class="note">Windows · macOS · Linux</div>
+          <div class="note">The full client — chat, Local Services, and your GPU as a body.</div>
         </div>
-        <a href="#" class="btn-outline">Download</a>
       </div>
+      <div class="download-buttons">
+        <a href="{% static 'downloads/Iris-Desktop-Windows.exe' %}" class="btn-outline">Windows (.exe)</a>
+        <a href="https://github.com/diegoberan/iris" class="btn-outline">Linux &amp; macOS — build from source</a>
+      </div>
+      <p class="hint">Windows: unsigned build — SmartScreen may warn "unknown publisher"; choose <strong>More info → Run anyway</strong>. Linux &amp; macOS: build from the repo with <code>npm run dist:linux</code> / <code>dist:mac</code> — signed native builds are coming.</p>
     </div>
 
     <div class="card download-card">
@@ -26,21 +31,12 @@
           <div class="platform">Android</div>
           <div class="note">.apk — sideload (not on Play Store yet)</div>
         </div>
-        <a href="#" class="btn-outline">Download .apk</a>
+        <a href="{% static 'downloads/Iris-Android.apk' %}" class="btn-outline">Download .apk</a>
       </div>
       <p class="hint">After downloading: Settings → Apps → Special access → Install unknown apps → allow your browser, then open the file.</p>
     </div>
-
-    <div class="card download-card">
-      <div class="row">
-        <div>
-          <div class="platform">Wear OS</div>
-          <div class="note">.apk — install via ADB over Wi-Fi</div>
-        </div>
-        <a href="#" class="btn-outline">Download .apk</a>
-      </div>
-      <p class="hint">Requires ADB. Pair the watch to your phone, enable Developer Options + Wireless debugging on the watch, then: <code>adb connect &lt;watch-ip&gt;:&lt;port&gt;</code> and <code>adb install iris-wear.apk</code>. Advanced and optional — see the demo video for the watch running live.</p>
-    </div>
   </div>
+
+  <p class="hint center" style="margin-top:32px">Wear OS runs the same Brain on your wrist — see it live in the demo video. A downloadable build is coming soon.</p>
 </div>
 {% endblock %}

@@ -8,4 +8,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "stripe>=11.0.0",
     "gunicorn>=23.0.0",
+    "google-auth-oauthlib>=1.2.0",
+    "google-auth>=2.35.0",
 ]

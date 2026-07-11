@@ -4,15 +4,15 @@
   <div class="hero-content" style="max-width:480px">
     <span class="eyebrow">Log in</span>
     <h1 style="font-size:38px">Welcome back</h1>
-    <p class="tagline" style="margin-bottom:0">Log in to manage your Iris instance and subscription.</p>
+    <p class="tagline" style="margin-bottom:0">Log in to manage your Íris instance and subscription.</p>
   </div>
 </section>
 
 <div class="main-narrow" style="padding-bottom:100px">
   <form class="signup-form" method="post" action="{% url 'login' %}">
     {% csrf_token %}
-    <input type="text" name="username" placeholder="Username" required>
-    <input type="password" name="password" placeholder="Password" required>
+    <input type="text" name="username" placeholder="Username" autocomplete="username" autocapitalize="none" autofocus required>
+    <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
     
     {% if form.errors or form.non_field_errors %}
       <div class="error">
@@ -29,6 +29,7 @@
     
     <button type="submit" class="btn btn-block">Log in</button>
     <p class="hint center">Don't have an account yet? <a href="{% url 'register' %}">Sign up here</a>.</p>
+    <p class="hint center">Your dashboard password is shown on your account page after provisioning. Lost your login? <a href="mailto:support@dberan.dev">Contact support</a>.</p>
   </form>
 </div>
 {% endblock %}

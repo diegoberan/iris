@@ -13,5 +13,6 @@ urlpatterns = [
     path("account/retry-provision", views.retry_provisioning, name="retry_provisioning"),
     path("downloads", views.downloads, name="downloads"),
     path("oauth/callback", views.oauth_callback, name="oauth_callback"),
+    path("oauth/google/start", views.oauth_google_start, name="oauth_google_start"),
     path("webhooks/stripe", views.stripe_webhook, name="stripe_webhook"),
 ]

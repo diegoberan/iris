@@ -1,4 +1,7 @@
 import json
+import os
+import secrets as secrets_module
+import shutil
 import stripe
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -7,9 +10,21 @@ from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .models import Signup
+from .models import Signup, PendingGoogleAuth
 from .notify import notify_signup
 from .provisioning import trigger_provisioning
+
+GOOGLE_SHARED_CLIENT_SECRET = "/root/.hermes-provision-secrets/google_client_secret.json"
+GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/documents",
+]
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -188,19 +203,112 @@ def billing_portal(request: HttpRequest) -> HttpResponse:
 def downloads(request: HttpRequest) -> HttpResponse:
     return render(request, "signups/downloads.html")
 
-def oauth_callback(request: HttpRequest) -> HttpResponse:
-    # Public, stateless landing page for Google's OAuth redirect. We don't
-    # know or care which tenant/instance started this flow -- we just show
-    # the code so the user can paste it back into their Hermes chat. No
-    # tenant correlation, no database writes.
-    return render(
-        request,
-        "signups/oauth_callback.html",
-        {
-            "code": request.GET.get("code", ""),
-            "error": request.GET.get("error", ""),
-        },
+def _read_tenant_dashboard_secret(tenant_username: str) -> str | None:
+    """Read a tenant's own HERMES_DASHBOARD_BASIC_AUTH_SECRET straight off
+    disk. Only something already running inside that tenant's environment
+    could know this value -- it's our proof the /oauth/google/start caller
+    actually owns the tenant it claims to.
+    """
+    env_path = f"/home/{tenant_username}/.hermes/.env"
+    if not os.path.exists(env_path):
+        return None
+    with open(env_path) as f:
+        for line in f:
+            if line.startswith("HERMES_DASHBOARD_BASIC_AUTH_SECRET="):
+                return line.split("=", 1)[1].strip()
+    return None
+
+
+@csrf_exempt
+@require_POST
+def oauth_google_start(request: HttpRequest) -> JsonResponse:
+    # Server-to-server only (called by setup.py running on the tenant's own
+    # box), never by a browser -- csrf_exempt is safe here, the shared
+    # per-tenant secret is the actual auth boundary.
+    try:
+        body = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    tenant = (body.get("tenant") or "").strip()
+    secret = (body.get("secret") or "").strip()
+    if not tenant or not secret:
+        return JsonResponse({"error": "tenant and secret required"}, status=400)
+
+    expected_secret = _read_tenant_dashboard_secret(tenant)
+    if not expected_secret or not secrets_module.compare_digest(secret, expected_secret):
+        return JsonResponse({"error": "invalid credentials"}, status=403)
+
+    if not os.path.exists(GOOGLE_SHARED_CLIENT_SECRET):
+        return JsonResponse({"error": "google oauth not configured on this server"}, status=500)
+
+    from google_auth_oauthlib.flow import Flow
+
+    flow = Flow.from_client_secrets_file(
+        GOOGLE_SHARED_CLIENT_SECRET,
+        scopes=GOOGLE_SCOPES,
+        redirect_uri=f"{settings.SITE_URL}/oauth/callback",
+        autogenerate_code_verifier=True,
     )
+    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent")
+
+    PendingGoogleAuth.objects.filter(tenant_username=tenant).delete()
+    PendingGoogleAuth.objects.create(state=state, tenant_username=tenant, code_verifier=flow.code_verifier)
+
+    return JsonResponse({"auth_url": auth_url})
+
+
+def oauth_callback(request: HttpRequest) -> HttpResponse:
+    # Public landing page for Google's OAuth redirect. If the state matches
+    # a flow /oauth/google/start began, we complete the token exchange
+    # ourselves and write it straight into the tenant's home directory --
+    # the user never sees or copies a code. Otherwise (no matching pending
+    # flow -- e.g. an old-style local setup.py flow), fall back to just
+    # displaying the code for manual copy-paste.
+    error = request.GET.get("error", "")
+    code = request.GET.get("code", "")
+    state = request.GET.get("state", "")
+
+    if error or not code:
+        return render(request, "signups/oauth_callback.html", {"code": code, "error": error})
+
+    pending = PendingGoogleAuth.objects.filter(state=state).first() if state else None
+    if not pending:
+        return render(request, "signups/oauth_callback.html", {"code": code, "error": ""})
+
+    from google_auth_oauthlib.flow import Flow
+
+    try:
+        flow = Flow.from_client_secrets_file(
+            GOOGLE_SHARED_CLIENT_SECRET,
+            scopes=GOOGLE_SCOPES,
+            redirect_uri=f"{settings.SITE_URL}/oauth/callback",
+            state=state,
+        )
+        flow.code_verifier = pending.code_verifier
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        flow.fetch_token(code=code)
+    except Exception as e:
+        pending.delete()
+        return render(request, "signups/oauth_callback.html", {"code": "", "error": f"Token exchange failed: {e}"})
+
+    creds = flow.credentials
+    token_payload = json.loads(creds.to_json())
+    if not token_payload.get("type"):
+        token_payload["type"] = "authorized_user"
+    granted = list(creds.granted_scopes or []) if getattr(creds, "granted_scopes", None) else []
+    if granted:
+        token_payload["scopes"] = granted
+
+    tenant = pending.tenant_username
+    token_path = f"/home/{tenant}/.hermes/google_token.json"
+    with open(token_path, "w") as f:
+        json.dump(token_payload, f, indent=2)
+    shutil.chown(token_path, user=tenant, group=tenant)
+    os.chmod(token_path, 0o600)
+
+    pending.delete()
+    return render(request, "signups/oauth_callback.html", {"connected": True})
 
 
 @login_required

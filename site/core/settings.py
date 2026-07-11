@@ -114,6 +114,12 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS = os.getenv(
         "CSRF_TRUSTED_ORIGINS", "https://iris.dberan.dev"
     ).split(",")
+    # setup.py on each tenant calls this same-box, over plain HTTP straight
+    # to gunicorn on 127.0.0.1 -- skips Caddy (no X-Forwarded-Proto header)
+    # and Cloudflare (which 403s the plain urllib User-Agent as a bot).
+    # Without this the SSL redirect would bounce it back out to the public
+    # HTTPS URL and defeat the whole point of calling localhost directly.
+    SECURE_REDIRECT_EXEMPT = [r"^oauth/google/start$"]
 
 # User Authentication redirects
 LOGIN_URL = "/login/"
