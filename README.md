@@ -108,7 +108,8 @@ This umbrella repo holds the Íris-specific work; the persistent Brain builds on
 | Desktop Local Services | [`desktop/`](desktop/) | The desktop-client subsystem behind the Bodies: service registry + lifecycle, schema-driven panels, capability announce, LM Studio `llm.chat` backend. |
 | SaaS + provisioning | [`site/`](site/) | Django site: signup, Stripe checkout, and automated per-tenant Brain provisioning. |
 | Capability Protocol | [`docs/rfc/0001-capability-protocol.md`](docs/rfc/0001-capability-protocol.md) | announce / act / health, first-response-wins routing, failover. |
-| Orchestrator | `tui_gateway/orchestrator.py` (in the Hermes Brain) | The `llm.chat` tier router: desktop-local → amd-cloud → fallback. |
+| Orchestrator | [`brain/orchestrator.py`](brain/orchestrator.py) | The `llm.chat` tier router: desktop-local → amd-cloud → fallback (reference copy; runs as `tui_gateway/orchestrator.py` inside the Brain). |
+| Slides + technical deck | [`docs/deck/`](docs/deck/) | The 6-slide submission deck and the 14-page technical appendix (architecture, protocol, AMD tiers, product path). |
 
 ## Setup
 

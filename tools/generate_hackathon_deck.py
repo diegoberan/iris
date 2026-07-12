@@ -6,8 +6,8 @@ from reportlab.pdfgen import canvas
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SUBMISSION_OUT = ROOT / "output" / "pdf" / "iris-amd-hackathon-deck.pdf"
-TECHNICAL_OUT = ROOT / "output" / "pdf" / "iris-amd-hackathon-technical-appendix.pdf"
+SUBMISSION_OUT = ROOT / "docs" / "deck" / "iris-amd-hackathon-deck.pdf"
+TECHNICAL_OUT = ROOT / "docs" / "deck" / "iris-amd-hackathon-technical-appendix.pdf"
 LOGO = ROOT / "site" / "static" / "img" / "iris-mark.png"
 PAGE = (13.333 * 72, 7.5 * 72)
 
