@@ -271,7 +271,17 @@ class ChatViewModel : ViewModel() {
     }
 
     fun newSession() {
-        viewModelScope.launch { ensureSession() }
+        viewModelScope.launch {
+            // ensureSession() short-circuits on an active id, so "New session"
+            // from the drawer was a no-op mid-chat. Drop the current session
+            // first -- this action must always open a fresh chat.
+            activeSessionId.value = null
+            storedSessionId = null
+            tierOverride.value = null
+            activeTitle.value = "New chat"
+            transcript.value = emptyList()
+            ensureSession()
+        }
     }
 
     /** Return the active session id, creating one first if none exists.
