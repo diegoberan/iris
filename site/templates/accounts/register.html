@@ -9,6 +9,14 @@
 </section>
 
 <div class="main-narrow" style="padding-bottom:100px">
+  <div style="max-width:480px;margin:0 auto 22px;padding:14px 16px;border:1px solid var(--amber);border-radius:10px;font-size:13px;line-height:1.6;color:var(--secondary-fg)">
+    <strong style="color:var(--amber)">Provisioning is email-gated.</strong>
+    Anyone can create an account, but a personal Íris instance is only provisioned
+    for pre-authorized emails (each signup spins up a dedicated GPU-backed Brain).
+    <strong>Hackathon judges:</strong> register with one of the pre-authorized
+    <code>amd-judge-XX@iris.dberan.dev</code> emails listed in our submission notes —
+    no mailbox needed, any password.
+  </div>
   <form class="signup-form" method="post" action="{% url 'register' %}">
     {% csrf_token %}
     <input type="text" name="username" placeholder="Username" required>
