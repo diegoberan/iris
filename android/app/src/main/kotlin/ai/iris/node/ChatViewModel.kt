@@ -98,6 +98,12 @@ class ChatViewModel : ViewModel() {
      *  connection, so a reconnect must re-resume from this one. */
     private var storedSessionId: String? = null
 
+    /** The user explicitly asked for a fresh chat. Must survive a reconnect:
+     *  bootstrap() otherwise re-picks the most recent stored session and
+     *  silently steamrolls the just-opened "New chat" back to the old one
+     *  (the tap looks like a no-op when the socket was down at that moment). */
+    private var wantsFreshSession = false
+
     init {
         viewModelScope.launch { GatewayConnection.events.collect(::onEvent) }
         viewModelScope.launch {
@@ -124,7 +130,13 @@ class ChatViewModel : ViewModel() {
         refreshSessions()
         loadProjects()
         val stored = storedSessionId
-        if (stored != null) {
+        if (wantsFreshSession) {
+            // A "New chat" is pending from before this (re)connect. Any live id
+            // is stale on the fresh connection; create the new session here
+            // instead of re-picking the old one below.
+            activeSessionId.value = null
+            ensureSession()
+        } else if (stored != null) {
             // Reconnect: the old LIVE id is stale on a fresh gateway
             // connection -- re-resume from the stored id so the next
             // prompt.submit targets a session this connection knows.
@@ -229,6 +241,8 @@ class ChatViewModel : ViewModel() {
     fun selectSession(id: String) {
         viewModelScope.launch {
             errorNotice.value = ""
+            // Picking an existing session overrides any pending fresh-chat intent.
+            wantsFreshSession = false
             storedSessionId = id
             runCatching {
                 activeTitle.value = sessions.value.firstOrNull { it.id == id }?.title ?: "Chat"
@@ -275,6 +289,7 @@ class ChatViewModel : ViewModel() {
             // ensureSession() short-circuits on an active id, so "New session"
             // from the drawer was a no-op mid-chat. Drop the current session
             // first -- this action must always open a fresh chat.
+            wantsFreshSession = true
             activeSessionId.value = null
             storedSessionId = null
             tierOverride.value = null
@@ -297,6 +312,7 @@ class ChatViewModel : ViewModel() {
             )
             val id = result.str("session_id") ?: result.str("id") ?: return@runCatching null
             activeSessionId.value = id
+            wantsFreshSession = false
             // Fresh sessions only have a live id; a reconnect re-picks the
             // most recent stored session from the list instead.
             storedSessionId = null
