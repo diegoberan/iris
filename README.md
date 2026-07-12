@@ -105,6 +105,7 @@ This umbrella repo holds the Íris-specific work; the persistent Brain builds on
 | Local GPU serving | [`infra/local-radeon/README.md`](infra/local-radeon/README.md) | LM Studio on Radeon `gfx1200` notes. |
 | Android Node | [`android/`](android/) | Kotlin/Compose body (`ai.iris.node`): `notification.send`, `location.current` over a Ktor WebSocket. |
 | Voice Clone service | [`local-services/voice-clone/`](local-services/voice-clone/) | F5-TTS on the local Radeon via torch-ROCm: FastAPI `/speak`, voice management API, pre-TTS normalizer. Announced as `speech.synthesis`. |
+| Desktop Local Services | [`desktop/`](desktop/) | The desktop-client subsystem behind the Bodies: service registry + lifecycle, schema-driven panels, capability announce, LM Studio `llm.chat` backend. |
 | SaaS + provisioning | [`site/`](site/) | Django site: signup, Stripe checkout, and automated per-tenant Brain provisioning. |
 | Capability Protocol | [`docs/rfc/0001-capability-protocol.md`](docs/rfc/0001-capability-protocol.md) | announce / act / health, first-response-wins routing, failover. |
 | Orchestrator | `tui_gateway/orchestrator.py` (in the Hermes Brain) | The `llm.chat` tier router: desktop-local → amd-cloud → fallback. |
