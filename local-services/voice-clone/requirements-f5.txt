@@ -1,0 +1,22 @@
+# Deps for the f5-env venv (synthesis engine: F5-TTS / F5TTS_v1_Base, ROCm).
+# You CANNOT install everything with a plain `pip install -r` -> torch/torchaudio
+# come from AMD's own ROCm index, not from PyPI. Order:
+#
+#   uv venv f5-env --python 3.11
+#   uv pip install --index-url https://rocm.nightlies.amd.com/whl-multi-arch/ \
+#       "torch[device-gfx1200]" torchaudio rocm-sdk-devel --python f5-env\Scripts\python.exe
+#   f5-env\Scripts\python.exe -m rocm_sdk init      (or: rocm-sdk init, inside the activated venv)
+#   uv pip install -r requirements-f5.txt --python f5-env\Scripts\python.exe
+#
+# The protobuf>=4,<5 pin is mandatory: cached_path (an f5-tts dep) imports
+# google-cloud-storage, which breaks with protobuf 3.19.x (missing builder) ->
+# ImportError: cannot import name 'builder' from 'google.protobuf.internal'.
+
+f5-tts==1.1.20
+fastapi==0.138.2
+uvicorn==0.49.0
+pydantic==2.9.2
+soundfile==0.14.0
+python-multipart==0.0.32
+numpy==2.4.6
+protobuf>=4,<5
