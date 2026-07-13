@@ -1,0 +1,19 @@
+# Iris Local Services: when the customer's Desktop app has Local Services
+# enabled, the gateway routes TTS through their own machine first
+# (desktop-session, the cloned voice on their own GPU). When that isn't
+# available (Local Services off), it falls back to Hermes' built-in Edge TTS
+# on the server.
+tts:
+  provider: edge
+  edge:
+    voice: en-US-AriaNeural
+  # Fail over to edge quickly when the customer's Desktop is offline — watch
+  # replies auto-speak and would stall the 30s default otherwise. 20s (not 8)
+  # because the cloned-voice synthesis of a paragraph on a consumer GPU
+  # legitimately takes >8s and was losing the custom voice to the fallback.
+  desktop_session:
+    timeout: 20
+  router:
+    providers:
+      - desktop-session
+      - edge

@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermes Gateway ({{USER_NAME}})
+After=network.target {{USER_NAME}}-dashboard.service
+
+[Service]
+Type=simple
+User={{USER_NAME}}
+Environment=HOME=/home/{{USER_NAME}}
+{{YOLO_ENV_LINE}}
+Environment=PATH=/home/{{USER_NAME}}/.local/bin:/home/{{USER_NAME}}/.hermes/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=/home/{{USER_NAME}}
+EnvironmentFile=-/home/{{USER_NAME}}/.hermes/.env
+ExecStart=/home/{{USER_NAME}}/.local/bin/hermes gateway run
+Restart=always
+RestartSec=10
+TimeoutStopSec=240
+
+[Install]
+WantedBy=multi-user.target

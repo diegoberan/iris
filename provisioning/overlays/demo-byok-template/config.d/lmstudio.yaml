@@ -1,0 +1,15 @@
+# Iris Orchestrator loopback (tui_gateway/orchestrator.py, enabled via
+# IRIS_ORCHESTRATOR=1 in env.d). BYOK plan has no AMD cloud tier, so requests
+# only succeed while the customer's Desktop node (LM Studio on their own GPU)
+# is connected and announcing an llm capability.
+custom_providers:
+  - name: "LM Studio Bridge"
+    base_url: "http://127.0.0.1:{{ORCH_PORT}}/v1"
+    api_key: "not-needed"
+    # Seed list only: the desktop's "edit models" refresh replaces it with
+    # the machine's live LM Studio catalog (orchestrator /v1/models relay).
+    models:
+      - "google/gemma-4-12b-qat"
+      - "ornith-1.0-9b"
+    extra_headers:
+      User-Agent: "hermes-agent/1.0"
