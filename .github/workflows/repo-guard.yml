@@ -1,0 +1,22 @@
+name: repo-guard
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  private-docs-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Block private planning docs
+        run: |
+          forbidden="docs/superpowers docs/review docs/brand docs/business docs/design docs/architecture design-system"
+          bad=0
+          for p in $forbidden; do
+            if [ -e "$p" ]; then
+              echo "::error::$p must not be published in this repository"
+              bad=1
+            fi
+          done
+          exit $bad
